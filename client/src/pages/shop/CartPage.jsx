@@ -22,6 +22,7 @@ export default function CartPage() {
     try {
       const res = await getCart();
       setCart(res.data.data || res.data);
+      if (window.__refreshCartCount) window.__refreshCartCount();
     } catch {
       setCart({ items: [] });
     } finally {
@@ -43,6 +44,7 @@ export default function CartPage() {
     try {
       const res = await removeCartItem(itemId);
       setCart(res.data.data || res.data);
+      if (window.__refreshCartCount) window.__refreshCartCount();
       toast.success('Item removed');
     } catch {
       toast.error('Failed to remove item');

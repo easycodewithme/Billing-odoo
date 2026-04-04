@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { confirmInvoice, cancelInvoice, sendInvoice, downloadInvoicePDF } from '@/api/invoices.api';
+import { confirmInvoice, cancelInvoice, sendInvoice, downloadInvoicePDF, revertInvoiceToDraft } from '@/api/invoices.api';
 import { createCheckout } from '@/api/payments.api';
 import {
   Card,
@@ -116,6 +116,19 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       toast.success('Invoice sent to customer');
     } catch {
       toast.error('Failed to send invoice');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRevertDraft = async () => {
+    setProcessing(true);
+    try {
+      await revertInvoiceToDraft(invoice.id);
+      toast.success('Invoice reverted to draft');
+      onRefresh?.();
+    } catch {
+      toast.error('Failed to revert invoice');
     } finally {
       setProcessing(false);
     }
@@ -346,6 +359,11 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
               >
                 <XCircle className="size-4" />
                 Cancel
+              </Button>
+            )}
+            {isStaff && invoice.status === 'cancelled' && (
+              <Button variant="outline" onClick={handleRevertDraft} disabled={processing}>
+                Revert to Draft
               </Button>
             )}
           </div>

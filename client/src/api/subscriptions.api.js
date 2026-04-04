@@ -9,3 +9,4 @@ export const applyTemplate = (id, data) => api.post(`/subscriptions/${id}/apply-
 export const addOrderLine = (subId, data) => api.post(`/subscriptions/${subId}/order-lines`, data);
 export const updateOrderLine = (subId, lineId, data) => api.put(`/subscriptions/${subId}/order-lines/${lineId}`, data);
 export const deleteOrderLine = (subId, lineId) => api.delete(`/subscriptions/${subId}/order-lines/${lineId}`);
+export const renewSubscription = (id) => api.post(`/subscriptions/${id}/renew`);

@@ -31,14 +31,14 @@ export default function Header({ onToggleSidebar }) {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 z-30 flex h-14 items-center border-b bg-background px-4">
+    <header className="fixed top-0 right-0 left-0 z-30 flex h-14 items-center border-b bg-background px-4 shadow-sm">
       {/* Left side */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={onToggleSidebar}>
           <Menu className="size-5" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
-        <span className="text-lg font-bold tracking-tight">SubManager</span>
+        <span className="hidden text-lg font-bold tracking-tight sm:inline-block">SubManager</span>
       </div>
 
       {/* Right side */}

@@ -46,6 +46,24 @@ export default function ProductDetailPage() {
         quantity,
       });
       toast.success('Added to cart');
+      if (window.__refreshCartCount) window.__refreshCartCount();
+    } catch {
+      toast.error('Failed to add to cart');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    setAdding(true);
+    try {
+      await addToCart({
+        productId: product.id,
+        variantId: selectedVariant?.id || undefined,
+        quantity,
+      });
+      if (window.__refreshCartCount) window.__refreshCartCount();
+      navigate('/shop/checkout');
     } catch {
       toast.error('Failed to add to cart');
     } finally {
@@ -147,6 +165,9 @@ export default function ProductDetailPage() {
             <Button size="lg" className="w-full" onClick={handleAddToCart} disabled={adding}>
               <ShoppingCart className="size-5 mr-2" />
               {adding ? 'Adding...' : `Add to Cart - $${(currentPrice * quantity).toFixed(2)}`}
+            </Button>
+            <Button size="lg" variant="outline" className="w-full" onClick={handleBuyNow} disabled={adding}>
+              Buy Now
             </Button>
 
             {/* Guarantees */}

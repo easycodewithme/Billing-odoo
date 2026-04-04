@@ -8,3 +8,4 @@ export const cancelInvoice = (id) => api.patch(`/invoices/${id}/cancel`);
 export const sendInvoice = (id) => api.post(`/invoices/${id}/send`);
 export const downloadInvoicePDF = (id) =>
   api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
+export const revertInvoiceToDraft = (id) => api.patch(`/invoices/${id}/revert-draft`);

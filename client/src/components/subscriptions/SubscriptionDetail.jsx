@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { updateSubscriptionStatus } from '@/api/subscriptions.api';
+import { updateSubscriptionStatus, renewSubscription } from '@/api/subscriptions.api';
 import {
   Card,
   CardContent,
@@ -67,6 +67,19 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
       return true;
     }
   );
+
+  const handleRenew = async () => {
+    setSubmitting(true);
+    try {
+      await renewSubscription(subscription.id);
+      toast.success('Subscription renewed successfully');
+      onRefresh?.();
+    } catch {
+      toast.error('Failed to renew subscription');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleStatusChange = async () => {
     if (!statusDialog) return;
@@ -151,7 +164,7 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
       </Card>
 
       {/* Status Actions */}
-      {availableTransitions.length > 0 && (
+      {(availableTransitions.length > 0 || subscription.status === 'closed') && (
         <Card>
           <CardHeader>
             <CardTitle>Actions</CardTitle>
@@ -171,6 +184,12 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
                   </Button>
                 );
               })}
+              {subscription.status === 'closed' && plan.renewable !== false && (
+                <Button onClick={handleRenew} disabled={submitting}>
+                  <RotateCcw className="size-4" />
+                  Renew
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

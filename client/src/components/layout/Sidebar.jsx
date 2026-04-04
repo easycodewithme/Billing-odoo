@@ -110,7 +110,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             if (visibleItems.length === 0) return null;
 
             return (
-              <div key={section.label} className="mb-4">
+              <div key={section.label} className="mb-4 pb-3 border-b border-border/40 last:border-b-0">
                 {!collapsed && (
                   <p className="mb-1 px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
                     {section.label}
@@ -127,7 +127,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                         className={({ isActive }) =>
                           cn(
                             'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
-                            isActive && 'bg-accent text-accent-foreground',
+                            isActive && 'bg-primary/10 text-primary border-l-2 border-primary',
                             collapsed && 'justify-center px-2'
                           )
                         }

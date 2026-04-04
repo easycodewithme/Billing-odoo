@@ -64,6 +64,7 @@ export default function CheckoutPage() {
       const res = await shopStripeCheckout();
       const url = res.data?.data?.url || res.data?.url;
       if (url) {
+        if (window.__refreshCartCount) window.__refreshCartCount();
         window.location.href = url;
       } else {
         toast.error('Failed to create payment session');
@@ -79,6 +80,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
     try {
       await shopCheckout({ ...form, paymentMethod: 'cash' });
+      if (window.__refreshCartCount) window.__refreshCartCount();
       navigate('/shop/order-confirmed');
     } catch {
       toast.error('Checkout failed');

@@ -23,7 +23,7 @@ import {
 
 const initialForm = {
   name: '',
-  productType: 'service',
+  productType: 'SaaS',
   salesPrice: '',
   costPrice: '',
   description: '',
@@ -107,9 +107,10 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="service">Service</SelectItem>
-                <SelectItem value="consumable">Consumable</SelectItem>
-                <SelectItem value="storable">Storable</SelectItem>
+                <SelectItem value="SaaS">SaaS</SelectItem>
+                <SelectItem value="Service">Service</SelectItem>
+                <SelectItem value="Goods">Goods</SelectItem>
+                <SelectItem value="Infrastructure">Infrastructure</SelectItem>
               </SelectContent>
             </Select>
           </div>
