@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { updateSubscriptionStatus, renewSubscription, portalSubscriptionAction } from '@/api/subscriptions.api';
 import { acceptQuotation, rejectQuotation, paySubscription } from '@/api/shop.api';
+import StatusStepper from './StatusStepper';
 import {
   Card,
   CardContent,
@@ -165,6 +166,9 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
 
   return (
     <div className="space-y-6">
+      {/* Status Flow Stepper */}
+      <StatusStepper currentStatus={subscription.status} />
+
       {/* Info Card */}
       <Card>
         <CardHeader>
@@ -213,6 +217,18 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
               <p className="text-sm font-medium text-muted-foreground">Payment Terms</p>
               <p className="text-sm">{subscription.paymentTerms || '-'}</p>
             </div>
+            {subscription.salespersonId && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Salesperson</p>
+                <p className="text-sm">{subscription.salespersonId}</p>
+              </div>
+            )}
+            {subscription.quotationDate && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Quotation Date</p>
+                <p className="text-sm">{new Date(subscription.quotationDate).toLocaleDateString()}</p>
+              </div>
+            )}
           </div>
           {subscription.notes && (
             <>
@@ -220,6 +236,33 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Notes</p>
                 <p className="text-sm mt-1">{subscription.notes}</p>
+              </div>
+            </>
+          )}
+          {/* Subscription History */}
+          {(subscription.parent || (subscription.children && subscription.children.length > 0)) && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Subscription History</p>
+                {subscription.parent && (
+                  <p className="text-sm">
+                    Renewed/Upsold from: <span className="font-medium">{subscription.parent.subscriptionNo}</span>
+                    {' '}<StatusBadge status={subscription.parent.status} />
+                  </p>
+                )}
+                {subscription.children && subscription.children.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Related subscriptions ({subscription.children.length}):</p>
+                    <div className="space-y-1">
+                      {subscription.children.map(child => (
+                        <p key={child.id} className="text-sm">
+                          {child.subscriptionNo} <StatusBadge status={child.status} />
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

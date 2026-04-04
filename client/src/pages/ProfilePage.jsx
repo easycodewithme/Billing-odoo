@@ -19,6 +19,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
     phone: user?.phone || '',
+    address: user?.address || '',
   });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
@@ -99,6 +100,19 @@ export default function ProfilePage() {
                 />
               ) : (
                 <p className="text-sm">{user.phone || '-'}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Address</Label>
+              {editing ? (
+                <Input
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Street, City, State, ZIP"
+                />
+              ) : (
+                <p className="text-sm">{user.address || '-'}</p>
               )}
             </div>
 

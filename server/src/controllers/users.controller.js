@@ -37,6 +37,7 @@ const getAll = async (req, res) => {
           fullName: true,
           email: true,
           phone: true,
+          address: true,
           role: true,
           avatar: true,
           isActive: true,
@@ -69,6 +70,7 @@ const getById = async (req, res) => {
         fullName: true,
         email: true,
         phone: true,
+        address: true,
         role: true,
         avatar: true,
         isActive: true,
@@ -148,7 +150,7 @@ const update = async (req, res) => {
       return error(res, 'User not found', 404);
     }
 
-    const { fullName, phone, avatar } = req.body;
+    const { fullName, phone, avatar, address } = req.body;
 
     const user = await prisma.user.update({
       where: { id },
@@ -156,12 +158,14 @@ const update = async (req, res) => {
         ...(fullName !== undefined && { fullName }),
         ...(phone !== undefined && { phone }),
         ...(avatar !== undefined && { avatar }),
+        ...(address !== undefined && { address }),
       },
       select: {
         id: true,
         fullName: true,
         email: true,
         phone: true,
+        address: true,
         role: true,
         avatar: true,
         isActive: true,

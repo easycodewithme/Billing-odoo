@@ -76,6 +76,7 @@ model User {
   email            String    @unique
   password         String
   phone            String?
+  address          String?
   role             Role      @default(portal_user)
   avatar           String?
   isActive         Boolean   @default(true)
@@ -163,12 +164,17 @@ model Subscription {
   expirationDate  DateTime?
   paymentTerms    String?
   status          SubscriptionStatus @default(draft)
+  salespersonId   String?
+  quotationDate   DateTime?
+  parentId        String?
   notes           String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
   customer              User                    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   plan                  RecurringPlan           @relation(fields: [planId], references: [id])
+  parent                Subscription?           @relation("SubscriptionHistory", fields: [parentId], references: [id])
+  children              Subscription[]          @relation("SubscriptionHistory")
   orderLines            OrderLine[]
   invoices              Invoice[]
   statusLogs            SubscriptionStatusLog[]

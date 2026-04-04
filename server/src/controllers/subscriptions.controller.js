@@ -72,6 +72,8 @@ const getById = async (req, res) => {
       include: {
         customer: true,
         plan: true,
+        parent: { select: { id: true, subscriptionNo: true, status: true } },
+        children: { select: { id: true, subscriptionNo: true, status: true, createdAt: true } },
         orderLines: {
           include: {
             product: true,
@@ -110,6 +112,9 @@ const getById = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
+    // Auto-assign salesperson to the creating user (admin/internal)
+    req.body.salespersonId = req.user.id;
+
     const subscription = await subscriptionService.createSubscription(req.body);
 
     await logAction(
@@ -209,6 +214,14 @@ const updateStatus = async (req, res) => {
       req.user.id,
       reason
     );
+
+    // Auto-set quotation date when sending quotation
+    if (newStatus === 'quotation') {
+      await prisma.subscription.update({
+        where: { id },
+        data: { quotationDate: new Date() },
+      });
+    }
 
     return success(res, updated, `Subscription status changed to '${newStatus}'`);
   } catch (err) {

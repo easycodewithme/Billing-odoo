@@ -229,6 +229,7 @@ const renewSubscription = async (subscriptionId, userId) => {
         startDate: newStart,
         expirationDate: newExpiration,
         paymentTerms: subscription.paymentTerms,
+        parentId: subscriptionId,
         notes: `Renewed from ${subscription.subscriptionNo}`,
         status: 'confirmed',
         orderLines: subscription.orderLines.length > 0 ? {
@@ -295,6 +296,7 @@ const upsellSubscription = async (subscriptionId, newOrderLines, userId) => {
         startDate: newStart,
         expirationDate: newExpiration,
         paymentTerms: subscription.paymentTerms,
+        parentId: subscriptionId,
         notes: `Upsell from ${subscription.subscriptionNo}`,
         status: 'confirmed',
         orderLines: newOrderLines && newOrderLines.length > 0 ? {
