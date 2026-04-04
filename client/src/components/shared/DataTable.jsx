@@ -71,7 +71,7 @@ export default function DataTable({
       )}
 
       {/* Table */}
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -95,8 +95,11 @@ export default function DataTable({
             {/* Empty state */}
             {!loading && data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={totalColumns} className="h-24 text-center text-muted-foreground">
-                  No results found.
+                <TableCell colSpan={totalColumns} className="h-32 text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Search className="size-8 opacity-30" />
+                    <p>No results found</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -124,12 +127,10 @@ export default function DataTable({
       {/* Pagination */}
       {pagination && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
-            {pagination.total != null && (
-              <span> &middot; {pagination.total} total</span>
-            )}
-          </p>
+            <span className="hidden sm:inline"> &middot; {pagination.total} total</span>
+          </span>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"

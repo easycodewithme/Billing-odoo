@@ -101,10 +101,10 @@ export default function ShopPage() {
               {products.map((product) => (
                 <Card
                   key={product.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+                  className="cursor-pointer group overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
-                  <div className="aspect-video bg-muted flex items-center justify-center">
+                  <div className="aspect-video bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center">
                     {product.image ? (
                       <img src={product.image.startsWith('http') ? product.image : `/uploads/products/${product.image}`} alt={product.name} className="w-full h-full object-cover" />
                     ) : (

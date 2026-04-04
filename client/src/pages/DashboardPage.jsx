@@ -152,7 +152,7 @@ function PortalDashboard({ refreshKey }) {
           ) : (
             <div className="space-y-3">
               {subscriptions.slice(0, 5).map(sub => (
-                <div key={sub.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={sub.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50" onClick={() => navigate(`/subscriptions/${sub.id}`)}>
                   <div>
                     <p className="text-sm font-medium">{sub.subscriptionNo}</p>
                     <p className="text-xs text-muted-foreground">{sub.plan?.name || '-'}</p>
@@ -177,7 +177,7 @@ function PortalDashboard({ refreshKey }) {
           ) : (
             <div className="space-y-3">
               {invoices.filter(i => i.status === 'confirmed').slice(0, 5).map(inv => (
-                <div key={inv.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                <div key={inv.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50" onClick={() => navigate(`/invoices/${inv.id}`)}>
                   <div>
                     <p className="text-sm font-medium">{inv.invoiceNo}</p>
                     <p className="text-xs text-muted-foreground">

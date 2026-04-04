@@ -90,7 +90,7 @@ export default function ProductDetailPage() {
 
       <div className="grid gap-8 md:grid-cols-2">
         {/* Image */}
-        <div className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+        <div className="aspect-square bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl flex items-center justify-center overflow-hidden">
           {product.image ? (
             <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
           ) : (
@@ -156,7 +156,7 @@ export default function ProductDetailPage() {
                 <div
                   key={plan.id}
                   onClick={() => setSelectedPlan(plan)}
-                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                     selectedPlan?.id === plan.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                   }`}
                 >
@@ -186,7 +186,7 @@ export default function ProductDetailPage() {
           <Separator />
 
           {/* Subscribe Button */}
-          <Button size="lg" className="w-full" onClick={handleSubscribe} disabled={submitting || !selectedPlan}>
+          <Button size="lg" className="w-full text-base h-12" onClick={handleSubscribe} disabled={submitting || !selectedPlan}>
             <ShoppingCart className="size-5 mr-2" />
             {submitting ? 'Submitting...' : `Subscribe - $${(currentPrice * quantity).toFixed(2)}${PERIOD_LABELS[selectedPlan?.billingPeriod] || ''}`}
           </Button>
