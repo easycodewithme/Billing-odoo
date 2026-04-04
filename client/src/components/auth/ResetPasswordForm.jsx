@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function ResetPasswordForm() {
   const [searchParams] = useSearchParams();
@@ -109,9 +109,32 @@ function RequestForm() {
   );
 }
 
+function PasswordPolicy({ password }) {
+  const rules = [
+    { label: 'At least 8 characters', valid: password.length >= 8 },
+    { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
+    { label: 'One lowercase letter', valid: /[a-z]/.test(password) },
+    { label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+    { label: 'One number', valid: /[0-9]/.test(password) },
+  ];
+
+  return (
+    <div className="space-y-1 mt-1.5">
+      {rules.map((rule) => (
+        <div key={rule.label} className="flex items-center gap-2 text-xs">
+          <div className={`size-1.5 rounded-full ${rule.valid ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+          <span className={rule.valid ? 'text-green-600' : 'text-muted-foreground'}>{rule.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ResetForm({ token }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -182,14 +205,25 @@ function ResetForm({ token }) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="newPassword">New Password</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              placeholder="At least 8 characters"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              aria-invalid={!!errors.newPassword}
-            />
+            <div className="relative">
+              <Input
+                id="newPassword"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                aria-invalid={!!errors.newPassword}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            <PasswordPolicy password={newPassword} />
             {errors.newPassword && (
               <p className="text-sm text-destructive">{errors.newPassword}</p>
             )}
@@ -197,14 +231,24 @@ function ResetForm({ token }) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Confirm your new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              aria-invalid={!!errors.confirmPassword}
-            />
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                aria-invalid={!!errors.confirmPassword}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
             {errors.confirmPassword && (
               <p className="text-sm text-destructive">{errors.confirmPassword}</p>
             )}

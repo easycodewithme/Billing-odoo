@@ -58,15 +58,15 @@ const navSections = [
   {
     label: 'Config',
     items: [
-      { to: '/taxes', label: 'Taxes', icon: Percent },
-      { to: '/discounts', label: 'Discounts', icon: Tag },
-      { to: '/users', label: 'Users', icon: Users, adminOnly: true },
+      { to: '/taxes', label: 'Taxes', icon: Percent, roles: ['admin', 'internal_user'] },
+      { to: '/discounts', label: 'Discounts', icon: Tag, roles: ['admin', 'internal_user'] },
+      { to: '/users', label: 'Users', icon: Users, roles: ['admin'] },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { to: '/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'internal_user'] },
     ],
   },
 ];
@@ -102,7 +102,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         <TooltipProvider delayDuration={0}>
           {navSections.map((section) => {
             const visibleItems = section.items.filter(
-              (item) => !item.adminOnly || userRole === 'admin'
+              (item) => !item.roles || item.roles.includes(userRole)
             );
             if (visibleItems.length === 0) return null;
 

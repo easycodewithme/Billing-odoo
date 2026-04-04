@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Menu, LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ function getInitials(name) {
 
 export default function Header({ onToggleSidebar }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
@@ -51,16 +53,14 @@ export default function Header({ onToggleSidebar }) {
         )}
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar>
-                {user?.avatar && <AvatarImage src={user.avatar} alt={user?.fullName} />}
-                <AvatarFallback>{getInitials(user?.fullName)}</AvatarFallback>
-              </Avatar>
-            </Button>
+          <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-full p-1 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar>
+              {user?.avatar && <AvatarImage src={user.avatar} alt={user?.fullName} />}
+              <AvatarFallback>{getInitials(user?.fullName)}</AvatarFallback>
+            </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="bottom" sideOffset={8} className="w-48">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/profile')}>
               <User className="size-4" />
               Profile
             </DropdownMenuItem>
