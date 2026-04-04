@@ -1,0 +1,207 @@
+const prisma = require('../utils/prisma');
+const { success, error, paginated } = require('../utils/apiResponse');
+const { getPagination } = require('../utils/pagination');
+const invoiceService = require('../services/invoice.service');
+
+/**
+ * GET /invoices
+ * List invoices with pagination and filters.
+ */
+const getAll = async (req, res) => {
+  try {
+    const { skip, take, page, limit } = getPagination(req.query);
+    const { status, customerId, startDate, endDate, overdue } = req.query;
+
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (customerId) {
+      where.customerId = customerId;
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate);
+      }
+    }
+
+    // Overdue filter: dueDate < now AND status != paid AND status != cancelled
+    if (overdue === 'true') {
+      where.dueDate = { lt: new Date() };
+      where.status = { notIn: ['paid', 'cancelled'] };
+    }
+
+    const [invoices, total] = await Promise.all([
+      prisma.invoice.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          customer: { select: { fullName: true, email: true } },
+          subscription: { select: { subscriptionNo: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.invoice.count({ where }),
+    ]);
+
+    return paginated(res, invoices, total, page, limit);
+  } catch (err) {
+    console.error('Get all invoices error:', err);
+    return error(res, 'Failed to fetch invoices');
+  }
+};
+
+/**
+ * GET /invoices/:id
+ * Get a single invoice with full details.
+ */
+const getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        invoiceLines: {
+          include: {
+            product: true,
+            variant: true,
+            tax: true,
+          },
+        },
+        payments: true,
+        customer: true,
+        subscription: true,
+      },
+    });
+
+    if (!invoice) {
+      return error(res, 'Invoice not found', 404);
+    }
+
+    return success(res, invoice);
+  } catch (err) {
+    console.error('Get invoice by ID error:', err);
+    return error(res, 'Failed to fetch invoice');
+  }
+};
+
+/**
+ * POST /invoices/generate/:subscriptionId
+ * Generate an invoice from a subscription.
+ */
+const generate = async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+
+    const invoice = await invoiceService.generateInvoice(subscriptionId);
+
+    return success(res, invoice, 'Invoice generated successfully', 201);
+  } catch (err) {
+    console.error('Generate invoice error:', err);
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
+  }
+};
+
+/**
+ * PATCH /invoices/:id/confirm
+ * Confirm a draft invoice.
+ */
+const confirm = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await invoiceService.confirmInvoice(id, req.user.id);
+
+    return success(res, invoice, 'Invoice confirmed successfully');
+  } catch (err) {
+    console.error('Confirm invoice error:', err);
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
+  }
+};
+
+/**
+ * PATCH /invoices/:id/cancel
+ * Cancel an invoice.
+ */
+const cancel = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await invoiceService.cancelInvoice(id, req.user.id);
+
+    return success(res, invoice, 'Invoice cancelled successfully');
+  } catch (err) {
+    console.error('Cancel invoice error:', err);
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
+  }
+};
+
+/**
+ * POST /invoices/:id/send
+ * Send an invoice (placeholder).
+ */
+const sendInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
+
+    if (!invoice) {
+      return error(res, 'Invoice not found', 404);
+    }
+
+    console.log(`Sending invoice ${invoice.invoiceNo} to customer...`);
+
+    return success(res, { invoiceId: id }, 'Invoice sent successfully');
+  } catch (err) {
+    console.error('Send invoice error:', err);
+    return error(res, 'Failed to send invoice');
+  }
+};
+
+/**
+ * GET /invoices/:id/pdf
+ * Download invoice as PDF (placeholder).
+ */
+const downloadPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
+
+    if (!invoice) {
+      return error(res, 'Invoice not found', 404);
+    }
+
+    return success(res, {
+      invoiceId: id,
+      invoiceNo: invoice.invoiceNo,
+      message: 'PDF generation coming soon',
+    });
+  } catch (err) {
+    console.error('Download PDF error:', err);
+    return error(res, 'Failed to generate PDF');
+  }
+};
+
+module.exports = {
+  getAll,
+  getById,
+  generate,
+  confirm,
+  cancel,
+  sendInvoice,
+  downloadPDF,
+};

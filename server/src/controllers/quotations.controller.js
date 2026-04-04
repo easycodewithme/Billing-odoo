@@ -1,0 +1,188 @@
+const prisma = require('../utils/prisma');
+const { success, error, paginated } = require('../utils/apiResponse');
+const { getPagination } = require('../utils/pagination');
+
+/**
+ * GET /quotation-templates
+ * Paginated list of quotation templates with recurringPlan relation.
+ */
+const getAll = async (req, res) => {
+  try {
+    const { skip, take, page, limit } = getPagination(req.query);
+
+    const [templates, total] = await Promise.all([
+      prisma.quotationTemplate.findMany({
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: { recurringPlan: true },
+      }),
+      prisma.quotationTemplate.count(),
+    ]);
+
+    return paginated(res, templates, total, page, limit);
+  } catch (err) {
+    console.error('Get all quotation templates error:', err);
+    return error(res, 'Failed to fetch quotation templates');
+  }
+};
+
+/**
+ * GET /quotation-templates/:id
+ * Single template with lines and product relations.
+ */
+const getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const template = await prisma.quotationTemplate.findUnique({
+      where: { id },
+      include: {
+        recurringPlan: true,
+        templateLines: {
+          include: { product: true },
+        },
+      },
+    });
+
+    if (!template) {
+      return error(res, 'Quotation template not found', 404);
+    }
+
+    return success(res, template);
+  } catch (err) {
+    console.error('Get quotation template by ID error:', err);
+    return error(res, 'Failed to fetch quotation template');
+  }
+};
+
+/**
+ * POST /quotation-templates
+ * Create a template with nested templateLines.
+ */
+const create = async (req, res) => {
+  try {
+    const { name, recurringPlanId, templateLines, ...rest } = req.body;
+
+    const template = await prisma.quotationTemplate.create({
+      data: {
+        name,
+        recurringPlanId: recurringPlanId || null,
+        ...rest,
+        templateLines: templateLines
+          ? {
+              create: templateLines.map((line) => ({
+                productId: line.productId,
+                quantity: line.quantity || 1,
+                unitPrice: line.unitPrice,
+                description: line.description || null,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        recurringPlan: true,
+        templateLines: {
+          include: { product: true },
+        },
+      },
+    });
+
+    return success(res, template, 'Quotation template created successfully', 201);
+  } catch (err) {
+    console.error('Create quotation template error:', err);
+    return error(res, 'Failed to create quotation template');
+  }
+};
+
+/**
+ * PUT /quotation-templates/:id
+ * Update template - delete old lines, create new lines in a transaction.
+ */
+const update = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.quotationTemplate.findUnique({ where: { id } });
+    if (!existing) {
+      return error(res, 'Quotation template not found', 404);
+    }
+
+    const { templateLines, ...templateData } = req.body;
+
+    const template = await prisma.$transaction(async (tx) => {
+      // Update template fields
+      await tx.quotationTemplate.update({
+        where: { id },
+        data: templateData,
+      });
+
+      // If templateLines provided, replace all lines
+      if (templateLines) {
+        // Delete existing lines
+        await tx.quotationTemplateLine.deleteMany({
+          where: { quotationTemplateId: id },
+        });
+
+        // Create new lines
+        if (templateLines.length > 0) {
+          await tx.quotationTemplateLine.createMany({
+            data: templateLines.map((line) => ({
+              quotationTemplateId: id,
+              productId: line.productId,
+              quantity: line.quantity || 1,
+              unitPrice: line.unitPrice,
+              description: line.description || null,
+            })),
+          });
+        }
+      }
+
+      // Return the updated template with relations
+      return tx.quotationTemplate.findUnique({
+        where: { id },
+        include: {
+          recurringPlan: true,
+          templateLines: {
+            include: { product: true },
+          },
+        },
+      });
+    });
+
+    return success(res, template, 'Quotation template updated successfully');
+  } catch (err) {
+    console.error('Update quotation template error:', err);
+    return error(res, 'Failed to update quotation template');
+  }
+};
+
+/**
+ * DELETE /quotation-templates/:id
+ * Delete template (cascade deletes lines).
+ */
+const remove = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.quotationTemplate.findUnique({ where: { id } });
+    if (!existing) {
+      return error(res, 'Quotation template not found', 404);
+    }
+
+    await prisma.quotationTemplate.delete({ where: { id } });
+
+    return success(res, null, 'Quotation template deleted successfully');
+  } catch (err) {
+    console.error('Remove quotation template error:', err);
+    return error(res, 'Failed to delete quotation template');
+  }
+};
+
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+};
