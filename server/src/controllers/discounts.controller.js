@@ -78,6 +78,14 @@ const create = async (req, res) => {
       return error(res, 'Percentage discount value cannot exceed 100', 400);
     }
 
+    // Convert date strings from frontend to proper Date objects
+    if (req.body.startDate) req.body.startDate = new Date(req.body.startDate);
+    if (req.body.endDate) req.body.endDate = new Date(req.body.endDate);
+
+    if (req.body.startDate && req.body.endDate && req.body.endDate <= req.body.startDate) {
+      return error(res, 'End date must be after start date', 400);
+    }
+
     const discount = await prisma.discount.create({
       data: req.body,
     });
@@ -110,6 +118,14 @@ const update = async (req, res) => {
 
     if (effectiveType === 'percentage' && effectiveValue > 100) {
       return error(res, 'Percentage discount value cannot exceed 100', 400);
+    }
+
+    // Convert date strings from frontend to proper Date objects
+    if (req.body.startDate) req.body.startDate = new Date(req.body.startDate);
+    if (req.body.endDate) req.body.endDate = new Date(req.body.endDate);
+
+    if (req.body.startDate && req.body.endDate && req.body.endDate <= req.body.startDate) {
+      return error(res, 'End date must be after start date', 400);
     }
 
     const discount = await prisma.discount.update({

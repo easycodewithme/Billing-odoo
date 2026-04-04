@@ -42,7 +42,8 @@ const generateInvoice = async (subscriptionId) => {
   const invoiceNo = generateInvoiceNo();
 
   // Calculate line-level amounts
-  const invoiceLines = subscription.orderLines.map((line) => {
+  const invoiceLines = [];
+  for (const line of subscription.orderLines) {
     const lineAmount = Number(line.quantity) * Number(line.unitPrice);
 
     // Calculate tax amount
@@ -54,14 +55,29 @@ const generateInvoice = async (subscriptionId) => {
     // Calculate discount amount
     let discountAmount = 0;
     if (line.discount) {
-      if (line.discount.type === 'percentage') {
-        discountAmount = lineAmount * (Number(line.discount.value) / 100);
-      } else {
-        discountAmount = Number(line.discount.value);
+      const now = new Date();
+      const discountStart = new Date(line.discount.startDate);
+      const discountEnd = new Date(line.discount.endDate);
+      const isDateValid = now >= discountStart && now <= discountEnd;
+      const isUsageValid = !line.discount.limitUsage || line.discount.currentUsage < line.discount.limitUsage;
+      const isPurchaseValid = !line.discount.minPurchase || lineAmount >= Number(line.discount.minPurchase);
+      const isQuantityValid = !line.discount.minQuantity || line.quantity >= line.discount.minQuantity;
+
+      if (isDateValid && isUsageValid && isPurchaseValid && isQuantityValid) {
+        if (line.discount.type === 'percentage') {
+          discountAmount = lineAmount * (Number(line.discount.value) / 100);
+        } else {
+          discountAmount = Number(line.discount.value);
+        }
+        // Increment usage atomically
+        await prisma.discount.update({
+          where: { id: line.discount.id },
+          data: { currentUsage: { increment: 1 } },
+        });
       }
     }
 
-    return {
+    invoiceLines.push({
       productId: line.productId,
       variantId: line.variantId || null,
       description: line.product.name + (line.variant ? ` - ${line.variant.value}` : ''),
@@ -71,8 +87,8 @@ const generateInvoice = async (subscriptionId) => {
       taxId: line.taxId || null,
       taxAmount,
       discountAmount,
-    };
-  });
+    });
+  }
 
   // Calculate totals
   const totalAmount = invoiceLines.reduce((sum, l) => sum + l.amount, 0);

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
@@ -11,6 +12,25 @@ const app = express();
 
 // Security & logging
 app.use(helmet());
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { success: false, message: 'Too many requests, please try again later' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { success: false, message: 'Too many login attempts, please try again later' },
+});
+
+app.use('/api', generalLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+
 app.use(morgan('dev'));
 app.use(cookieParser());
 

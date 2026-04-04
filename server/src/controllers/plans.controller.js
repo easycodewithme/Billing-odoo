@@ -61,6 +61,14 @@ const getById = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
+    // Convert date strings from frontend to proper Date objects
+    if (req.body.startDate) req.body.startDate = new Date(req.body.startDate);
+    if (req.body.endDate) req.body.endDate = new Date(req.body.endDate);
+
+    if (req.body.startDate && req.body.endDate && req.body.endDate <= req.body.startDate) {
+      return error(res, 'End date must be after start date', 400);
+    }
+
     const plan = await prisma.recurringPlan.create({
       data: req.body,
     });
@@ -85,6 +93,14 @@ const update = async (req, res) => {
     const existing = await prisma.recurringPlan.findUnique({ where: { id } });
     if (!existing) {
       return error(res, 'Plan not found', 404);
+    }
+
+    // Convert date strings from frontend to proper Date objects
+    if (req.body.startDate) req.body.startDate = new Date(req.body.startDate);
+    if (req.body.endDate) req.body.endDate = new Date(req.body.endDate);
+
+    if (req.body.startDate && req.body.endDate && req.body.endDate <= req.body.startDate) {
+      return error(res, 'End date must be after start date', 400);
     }
 
     const plan = await prisma.recurringPlan.update({
@@ -116,7 +132,7 @@ const remove = async (req, res) => {
 
     // Check for attached subscriptions
     const subscriptionCount = await prisma.subscription.count({
-      where: { recurringPlanId: id },
+      where: { planId: id },
     });
 
     if (subscriptionCount > 0) {
