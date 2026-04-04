@@ -237,19 +237,36 @@ const paySubscription = async (req, res) => {
     if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
     if (subscription.status !== 'confirmed') return error(res, 'Subscription must be confirmed before payment', 400);
 
-    // Calculate total
-    const total = subscription.orderLines.reduce((sum, line) => sum + Number(line.amount), 0);
+    // Build Stripe line items: plan price + product add-ons
+    const lineItems = [];
 
-    const lineItems = subscription.orderLines.map(line => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: line.product.name + (line.variant ? ` - ${line.variant.value}` : ''),
+    // Add the plan base price as the first line item
+    if (subscription.plan) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${subscription.plan.name} (${subscription.plan.billingPeriod} plan)`,
+          },
+          unit_amount: Math.round(Number(subscription.plan.price) * 100),
         },
-        unit_amount: Math.round((Number(line.amount) / line.quantity) * 100),
-      },
-      quantity: line.quantity,
-    }));
+        quantity: 1,
+      });
+    }
+
+    // Add product add-ons
+    for (const line of subscription.orderLines) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: line.product.name + (line.variant ? ` - ${line.variant.value}` : ''),
+          },
+          unit_amount: Math.round((Number(line.amount) / line.quantity) * 100),
+        },
+        quantity: line.quantity,
+      });
+    }
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

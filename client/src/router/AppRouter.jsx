@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
-import MainLayout from '../components/layout/MainLayout';
+import RoleLayout from '../components/layout/RoleLayout';
 
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
@@ -25,7 +25,6 @@ import PaymentSuccessPage from '../pages/PaymentSuccessPage';
 import PaymentCancelPage from '../pages/PaymentCancelPage';
 import ShopPage from '../pages/shop/ShopPage';
 import ShopProductDetailPage from '../pages/shop/ProductDetailPage';
-import ShopLayout from '../components/shop/ShopLayout';
 import ShopPlansPage from '../pages/shop/PlansPage';
 
 export default function AppRouter() {
@@ -45,8 +44,8 @@ export default function AppRouter() {
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
-        <Route element={<MainLayout />}>
-          {/* Routes accessible to all authenticated roles */}
+        <Route element={<RoleLayout />}>
+          {/* All authenticated users */}
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/subscriptions/:id" element={<SubscriptionDetailPage />} />
@@ -54,6 +53,11 @@ export default function AppRouter() {
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+
+          {/* Shop pages (portal uses same layout) */}
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/shop/plans" element={<ShopPlansPage />} />
+          <Route path="/shop/:id" element={<ShopProductDetailPage />} />
 
           {/* Admin / internal_user only */}
           <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
@@ -65,19 +69,9 @@ export default function AppRouter() {
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
-          {/* Admin only */}
           <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
             <Route path="/users" element={<UsersPage />} />
           </Route>
-        </Route>
-      </Route>
-
-      {/* Shop routes with ShopNav */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<ShopLayout />}>
-          <Route path="/shop" element={<ShopPage />} />
-          <Route path="/shop/plans" element={<ShopPlansPage />} />
-          <Route path="/shop/:id" element={<ShopProductDetailPage />} />
         </Route>
       </Route>
 

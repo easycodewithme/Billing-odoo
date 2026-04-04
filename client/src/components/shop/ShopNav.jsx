@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { User, LogOut, Menu, X, LayoutDashboard, Receipt, CreditCard, Package } from 'lucide-react';
+import { User, LogOut, Menu, X, LayoutDashboard, Receipt, CreditCard, Package, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -20,11 +20,11 @@ export default function ShopNav() {
   const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const navLinks = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/shop', label: 'Shop', icon: Package },
     { to: '/shop/plans', label: 'Plans', icon: CreditCard },
-    { to: '/subscriptions', label: 'My Subscriptions', icon: CreditCard },
+    { to: '/subscriptions', label: 'My Subscriptions', icon: FileText },
     { to: '/invoices', label: 'Invoices', icon: Receipt },
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
 
   return (
