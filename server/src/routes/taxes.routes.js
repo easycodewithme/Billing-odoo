@@ -7,7 +7,7 @@ const { createSchema, updateSchema } = require('../validators/tax.validator');
 
 const router = Router();
 
-router.get('/', authenticate, taxesController.getAll);
+router.get('/', authenticate, authorize('admin', 'internal_user'), taxesController.getAll);
 router.post('/', authenticate, authorize('admin'), validate(createSchema), taxesController.create);
 router.put('/:id', authenticate, authorize('admin', 'internal_user'), validate(updateSchema), taxesController.update);
 router.delete('/:id', authenticate, authorize('admin'), taxesController.remove);
