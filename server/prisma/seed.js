@@ -6,6 +6,8 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Clearing existing data...');
   // Delete in correct order to respect foreign keys
+  await prisma.shopOrderItem.deleteMany();
+  await prisma.shopOrder.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.subscriptionStatusLog.deleteMany();
   await prisma.payment.deleteMany();
@@ -92,6 +94,7 @@ async function main() {
       salesPrice: 99.99,
       costPrice: 30.00,
       description: 'Professional CRM with pipeline management, contact tracking, and analytics dashboard.',
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop',
       variants: {
         create: [
           { attribute: 'Plan', value: 'Basic', extraPrice: 0 },
@@ -110,6 +113,7 @@ async function main() {
       salesPrice: 29.99,
       costPrice: 8.00,
       description: 'Secure cloud storage with automatic backups and file versioning.',
+      image: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=600&h=400&fit=crop',
       variants: {
         create: [
           { attribute: 'Storage', value: '100GB', extraPrice: 0 },
@@ -129,6 +133,7 @@ async function main() {
       salesPrice: 49.99,
       costPrice: 12.00,
       description: 'Complete email marketing platform with automation, templates, and A/B testing.',
+      image: 'https://images.unsplash.com/photo-1563986768609-322da13575f2?w=600&h=400&fit=crop',
       variants: {
         create: [
           { attribute: 'Tier', value: 'Starter', extraPrice: 0 },
@@ -147,6 +152,7 @@ async function main() {
       salesPrice: 79.99,
       costPrice: 20.00,
       description: 'Real-time analytics with custom reports, data visualization, and team sharing.',
+      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop',
       variants: {
         create: [
           { attribute: 'Seats', value: '5 Users', extraPrice: 0 },
@@ -165,6 +171,7 @@ async function main() {
       salesPrice: 59.99,
       costPrice: 18.00,
       description: 'Customer support ticketing system with live chat, knowledge base, and SLA tracking.',
+      image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=600&h=400&fit=crop',
       variants: {
         create: [
           { attribute: 'Agents', value: '3 Agents', extraPrice: 0 },
@@ -183,6 +190,7 @@ async function main() {
       salesPrice: 39.99,
       costPrice: 10.00,
       description: 'Project management tool with Kanban boards, Gantt charts, and time tracking.',
+      image: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=600&h=400&fit=crop',
     },
   });
 
