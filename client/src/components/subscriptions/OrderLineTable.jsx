@@ -47,9 +47,11 @@ const initialLine = {
 export default function OrderLineTable({
   subscriptionId,
   orderLines = [],
-  editable = false,
+  editable: editableProp = false,
+  readOnly = false,
   onRefresh,
 }) {
+  const editable = editableProp && !readOnly;
   const [formOpen, setFormOpen] = useState(false);
   const [editLine, setEditLine] = useState(null);
   const [deleteLine, setDeleteLine] = useState(null);

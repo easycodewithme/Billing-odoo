@@ -263,6 +263,9 @@ const addOrderLine = async (req, res) => {
     if (!subscription) {
       return error(res, 'Subscription not found', 404);
     }
+    if (!['draft', 'quotation'].includes(subscription.status)) {
+      return error(res, 'Order lines cannot be modified after subscription is confirmed', 400);
+    }
 
     const amount = quantity * unitPrice;
 
@@ -308,6 +311,12 @@ const updateOrderLine = async (req, res) => {
   try {
     const { id, lineId } = req.params;
     const { productId, variantId, quantity, unitPrice, taxId, discountId } = req.body;
+
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (!['draft', 'quotation'].includes(subscription.status)) {
+      return error(res, 'Order lines cannot be modified after subscription is confirmed', 400);
+    }
 
     const existing = await prisma.orderLine.findFirst({
       where: { id: lineId, subscriptionId: id },
@@ -361,6 +370,12 @@ const removeOrderLine = async (req, res) => {
   try {
     const { id, lineId } = req.params;
 
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (!['draft', 'quotation'].includes(subscription.status)) {
+      return error(res, 'Order lines cannot be modified after subscription is confirmed', 400);
+    }
+
     const existing = await prisma.orderLine.findFirst({
       where: { id: lineId, subscriptionId: id },
     });
@@ -390,12 +405,87 @@ const removeOrderLine = async (req, res) => {
 const renew = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Allow portal users to renew their own subscriptions
+    if (req.user.role === 'portal_user') {
+      const sub = await prisma.subscription.findUnique({ where: { id } });
+      if (!sub || sub.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+    }
+
     const updated = await subscriptionService.renewSubscription(id, req.user.id);
     return success(res, updated, 'Subscription renewed successfully');
   } catch (err) {
     console.error('Renew subscription error:', err);
     const statusCode = err.message.includes('not found') ? 404 : 400;
     return error(res, err.message, statusCode);
+  }
+};
+
+const upsell = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orderLines } = req.body;
+    const updated = await subscriptionService.upsellSubscription(id, orderLines, req.user.id);
+    return success(res, updated, 'Upsell subscription created successfully', 201);
+  } catch (err) {
+    console.error('Upsell error:', err);
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
+  }
+};
+
+const portalAction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { id },
+      include: { plan: true },
+    });
+
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+
+    if (action === 'close') {
+      if (subscription.status !== 'active') return error(res, 'Only active subscriptions can be closed', 400);
+      if (!subscription.plan.closable) return error(res, 'This plan does not allow closing', 400);
+    } else if (action === 'pause') {
+      if (subscription.status !== 'active') return error(res, 'Only active subscriptions can be paused', 400);
+      if (!subscription.plan.pausable) return error(res, 'This plan does not allow pausing', 400);
+    } else if (action === 'resume') {
+      if (subscription.status !== 'paused') return error(res, 'Only paused subscriptions can be resumed', 400);
+    } else {
+      return error(res, 'Invalid action', 400);
+    }
+
+    const statusMap = { close: 'closed', pause: 'paused', resume: 'active' };
+    const newStatus = statusMap[action];
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.update({
+        where: { id },
+        data: { status: newStatus },
+        include: { plan: true, customer: { select: { fullName: true } } },
+      });
+
+      await tx.subscriptionStatusLog.create({
+        data: {
+          subscriptionId: id,
+          fromStatus: subscription.status,
+          toStatus: newStatus,
+          changedById: req.user.id,
+          reason: reason || `Portal user ${action}`,
+        },
+      });
+
+      return sub;
+    });
+
+    return success(res, updated, `Subscription ${action}d successfully`);
+  } catch (err) {
+    console.error('Portal action error:', err);
+    return error(res, err.message || 'Failed to perform action');
   }
 };
 
@@ -410,4 +500,6 @@ module.exports = {
   updateOrderLine,
   removeOrderLine,
   renew,
+  upsell,
+  portalAction,
 };

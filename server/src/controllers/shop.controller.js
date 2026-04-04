@@ -2,11 +2,11 @@ const prisma = require('../utils/prisma');
 const { success, error, paginated } = require('../utils/apiResponse');
 const { getPagination } = require('../utils/pagination');
 
-// GET /shop/products - Public product listing for storefront
+// GET /shop/products - Public product listing
 const getProducts = async (req, res) => {
   try {
     const { skip, take, page, limit } = getPagination(req.query);
-    const { search, productType, minPrice, maxPrice, sortBy } = req.query;
+    const { search, productType, sortBy } = req.query;
 
     const where = { isActive: true };
     if (search) {
@@ -15,12 +15,7 @@ const getProducts = async (req, res) => {
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
-    if (productType) where.productType = productType;
-    if (minPrice || maxPrice) {
-      where.salesPrice = {};
-      if (minPrice) where.salesPrice.gte = Number(minPrice);
-      if (maxPrice) where.salesPrice.lte = Number(maxPrice);
-    }
+    if (productType && productType !== 'all') where.productType = productType;
 
     let orderBy = { createdAt: 'desc' };
     if (sortBy === 'price_asc') orderBy = { salesPrice: 'asc' };
@@ -42,10 +37,10 @@ const getProducts = async (req, res) => {
   }
 };
 
-// GET /shop/products/:id - Single product detail
+// GET /shop/products/:id - Product detail
 const getProductDetail = async (req, res) => {
   try {
-    const product = await prisma.product.findUnique({
+    const product = await prisma.product.findFirst({
       where: { id: req.params.id, isActive: true },
       include: { variants: true },
     });
@@ -55,358 +50,6 @@ const getProductDetail = async (req, res) => {
     return error(res, 'Failed to fetch product');
   }
 };
-
-// GET /shop/cart - Get current user's cart
-const getCart = async (req, res) => {
-  try {
-    let cart = await prisma.shopOrder.findFirst({
-      where: { customerId: req.user.id, status: 'cart' },
-      include: {
-        items: { include: { product: true, variant: true }, orderBy: { createdAt: 'asc' } },
-      },
-    });
-    if (!cart) {
-      cart = { items: [], subtotal: 0, taxAmount: 0, discountAmount: 0, total: 0 };
-    }
-    return success(res, cart);
-  } catch (err) {
-    return error(res, 'Failed to fetch cart');
-  }
-};
-
-// POST /shop/cart/add - Add item to cart
-const addToCart = async (req, res) => {
-  try {
-    const { productId, variantId, quantity } = req.body;
-    const qty = Number(quantity) || 1;
-
-    const product = await prisma.product.findUnique({ where: { id: productId }, include: { variants: true } });
-    if (!product || !product.isActive) return error(res, 'Product not found', 404);
-
-    let unitPrice = Number(product.salesPrice);
-    if (variantId) {
-      const variant = product.variants.find(v => v.id === variantId);
-      if (variant) unitPrice += Number(variant.extraPrice);
-    }
-
-    // Get or create cart
-    let cart = await prisma.shopOrder.findFirst({
-      where: { customerId: req.user.id, status: 'cart' },
-    });
-
-    if (!cart) {
-      const orderNo = 'SO-' + Date.now() + Math.floor(Math.random() * 1000);
-      cart = await prisma.shopOrder.create({
-        data: { orderNo, customerId: req.user.id, status: 'cart' },
-      });
-    }
-
-    // Check if item already in cart
-    const existing = await prisma.shopOrderItem.findFirst({
-      where: { orderId: cart.id, productId, variantId: variantId || null },
-    });
-
-    if (existing) {
-      await prisma.shopOrderItem.update({
-        where: { id: existing.id },
-        data: { quantity: existing.quantity + qty, total: (existing.quantity + qty) * unitPrice },
-      });
-    } else {
-      await prisma.shopOrderItem.create({
-        data: {
-          orderId: cart.id,
-          productId,
-          variantId: variantId || null,
-          quantity: qty,
-          unitPrice,
-          total: qty * unitPrice,
-        },
-      });
-    }
-
-    // Recalculate cart totals
-    await recalculateCart(cart.id);
-
-    const updated = await prisma.shopOrder.findUnique({
-      where: { id: cart.id },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    return success(res, updated, 'Item added to cart');
-  } catch (err) {
-    console.error('Add to cart error:', err);
-    return error(res, 'Failed to add to cart');
-  }
-};
-
-// PUT /shop/cart/item/:itemId - Update cart item quantity
-const updateCartItem = async (req, res) => {
-  try {
-    const { itemId } = req.params;
-    const { quantity } = req.body;
-    const qty = Number(quantity);
-
-    if (qty < 1) return error(res, 'Quantity must be at least 1', 400);
-
-    const item = await prisma.shopOrderItem.findUnique({
-      where: { id: itemId },
-      include: { order: true },
-    });
-
-    if (!item || item.order.customerId !== req.user.id || item.order.status !== 'cart') {
-      return error(res, 'Item not found', 404);
-    }
-
-    await prisma.shopOrderItem.update({
-      where: { id: itemId },
-      data: { quantity: qty, total: qty * Number(item.unitPrice) },
-    });
-
-    await recalculateCart(item.orderId);
-
-    const cart = await prisma.shopOrder.findUnique({
-      where: { id: item.orderId },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    return success(res, cart);
-  } catch (err) {
-    return error(res, 'Failed to update cart');
-  }
-};
-
-// DELETE /shop/cart/item/:itemId - Remove item from cart
-const removeCartItem = async (req, res) => {
-  try {
-    const { itemId } = req.params;
-
-    const item = await prisma.shopOrderItem.findUnique({
-      where: { id: itemId },
-      include: { order: true },
-    });
-
-    if (!item || item.order.customerId !== req.user.id || item.order.status !== 'cart') {
-      return error(res, 'Item not found', 404);
-    }
-
-    await prisma.shopOrderItem.delete({ where: { id: itemId } });
-    await recalculateCart(item.orderId);
-
-    const cart = await prisma.shopOrder.findUnique({
-      where: { id: item.orderId },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    return success(res, cart);
-  } catch (err) {
-    return error(res, 'Failed to remove item');
-  }
-};
-
-// POST /shop/cart/discount - Apply discount code
-const applyDiscount = async (req, res) => {
-  try {
-    const { code } = req.body;
-
-    const cart = await prisma.shopOrder.findFirst({
-      where: { customerId: req.user.id, status: 'cart' },
-      include: { items: true },
-    });
-
-    if (!cart || cart.items.length === 0) return error(res, 'Cart is empty', 400);
-
-    const discount = await prisma.discount.findFirst({
-      where: { name: { equals: code, mode: 'insensitive' }, isActive: true },
-    });
-
-    if (!discount) return error(res, 'Invalid discount code', 404);
-
-    const now = new Date();
-    if (now < new Date(discount.startDate) || now > new Date(discount.endDate)) {
-      return error(res, 'Discount code has expired', 400);
-    }
-    if (discount.limitUsage && discount.currentUsage >= discount.limitUsage) {
-      return error(res, 'Discount code usage limit reached', 400);
-    }
-
-    const subtotal = cart.items.reduce((sum, i) => sum + Number(i.total), 0);
-    if (discount.minPurchase && subtotal < Number(discount.minPurchase)) {
-      return error(res, `Minimum purchase of $${discount.minPurchase} required`, 400);
-    }
-
-    const totalQuantity = cart.items.reduce((sum, i) => sum + i.quantity, 0);
-    if (discount.minQuantity && totalQuantity < discount.minQuantity) {
-      return error(res, `Minimum quantity of ${discount.minQuantity} items required`, 400);
-    }
-
-    let discountAmount = 0;
-    if (discount.type === 'percentage') {
-      discountAmount = subtotal * (Number(discount.value) / 100);
-    } else {
-      discountAmount = Number(discount.value);
-    }
-
-    await prisma.shopOrder.update({
-      where: { id: cart.id },
-      data: {
-        discountCode: code,
-        discountAmount: Math.min(discountAmount, subtotal),
-        total: Math.max(subtotal - discountAmount, 0),
-      },
-    });
-
-    const updated = await prisma.shopOrder.findUnique({
-      where: { id: cart.id },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    return success(res, updated, 'Discount applied');
-  } catch (err) {
-    return error(res, 'Failed to apply discount');
-  }
-};
-
-// POST /shop/checkout - Complete checkout
-const checkout = async (req, res) => {
-  try {
-    const { shippingName, shippingEmail, shippingPhone, shippingAddress, paymentMethod } = req.body;
-
-    const cart = await prisma.shopOrder.findFirst({
-      where: { customerId: req.user.id, status: 'cart' },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    if (!cart || cart.items.length === 0) return error(res, 'Cart is empty', 400);
-
-    const order = await prisma.shopOrder.update({
-      where: { id: cart.id },
-      data: {
-        status: 'confirmed',
-        shippingName: shippingName || req.user.fullName,
-        shippingEmail: shippingEmail || req.user.email,
-        shippingPhone: shippingPhone || req.user.phone,
-        shippingAddress,
-        paymentMethod: paymentMethod || 'stripe',
-        paidAt: new Date(),
-      },
-      include: { items: { include: { product: true, variant: true } } },
-    });
-
-    // Increment discount usage if applied
-    if (cart.discountCode) {
-      await prisma.discount.updateMany({
-        where: { name: { equals: cart.discountCode, mode: 'insensitive' } },
-        data: { currentUsage: { increment: 1 } },
-      });
-    }
-
-    return success(res, order, 'Order placed successfully', 201);
-  } catch (err) {
-    console.error('Checkout error:', err);
-    return error(res, 'Failed to complete checkout');
-  }
-};
-
-// GET /shop/orders - Portal user's order history
-const getOrders = async (req, res) => {
-  try {
-    const { skip, take, page, limit } = getPagination(req.query);
-
-    const where = { customerId: req.user.id, status: { not: 'cart' } };
-
-    const [orders, total] = await Promise.all([
-      prisma.shopOrder.findMany({
-        where, skip, take,
-        include: { items: { include: { product: true, variant: true } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.shopOrder.count({ where }),
-    ]);
-
-    return paginated(res, orders, total, page, limit);
-  } catch (err) {
-    return error(res, 'Failed to fetch orders');
-  }
-};
-
-// GET /shop/orders/:id - Single order detail
-const getOrderDetail = async (req, res) => {
-  try {
-    const order = await prisma.shopOrder.findUnique({
-      where: { id: req.params.id },
-      include: {
-        items: { include: { product: true, variant: true } },
-        customer: { select: { fullName: true, email: true, phone: true } },
-      },
-    });
-
-    if (!order || order.customerId !== req.user.id) {
-      return error(res, 'Order not found', 404);
-    }
-
-    return success(res, order);
-  } catch (err) {
-    return error(res, 'Failed to fetch order');
-  }
-};
-
-// POST /shop/checkout/stripe - Create Stripe session for cart
-const stripeCheckout = async (req, res) => {
-  try {
-    const stripe = require('../config/stripe');
-    const config = require('../config/env');
-
-    const cart = await prisma.shopOrder.findFirst({
-      where: { customerId: req.user.id, status: 'cart' },
-      include: { items: { include: { product: true, variant: true } }, customer: true },
-    });
-
-    if (!cart || cart.items.length === 0) return error(res, 'Cart is empty', 400);
-
-    const lineItems = cart.items.map(item => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.product.name + (item.variant ? ` - ${item.variant.value}` : ''),
-        },
-        unit_amount: Math.round(Number(item.unitPrice) * 100),
-      },
-      quantity: item.quantity,
-    }));
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: cart.customer?.email,
-      line_items: lineItems,
-      metadata: { orderId: cart.id, orderNo: cart.orderNo },
-      success_url: `${config.STRIPE_SUCCESS_URL}?order_id=${cart.id}`,
-      cancel_url: `${config.STRIPE_CANCEL_URL}?order_id=${cart.id}`,
-    });
-
-    return success(res, { sessionId: session.id, url: session.url });
-  } catch (err) {
-    console.error('Stripe shop checkout error:', err);
-    return error(res, 'Failed to create checkout session');
-  }
-};
-
-// Helper: recalculate cart totals
-async function recalculateCart(orderId) {
-  const items = await prisma.shopOrderItem.findMany({ where: { orderId } });
-  const subtotal = items.reduce((sum, i) => sum + Number(i.total), 0);
-
-  const cart = await prisma.shopOrder.findUnique({ where: { id: orderId } });
-  const discountAmount = Number(cart.discountAmount || 0);
-
-  await prisma.shopOrder.update({
-    where: { id: orderId },
-    data: {
-      subtotal,
-      total: Math.max(subtotal - discountAmount, 0),
-    },
-  });
-}
 
 // GET /shop/plans - List available recurring plans
 const getPlans = async (req, res) => {
@@ -421,51 +64,50 @@ const getPlans = async (req, res) => {
   }
 };
 
-// POST /shop/subscribe - Portal user self-subscribes
+// POST /shop/subscribe - Portal user creates a subscription request (draft)
+// Body: { planId, items: [{ productId, variantId?, quantity }], notes? }
 const subscribe = async (req, res) => {
   try {
-    const { planId, products, paymentTerms } = req.body;
+    const { planId, items, notes } = req.body;
 
     if (!planId) return error(res, 'Plan is required', 400);
+    if (!items || items.length === 0) return error(res, 'At least one product is required', 400);
 
     const plan = await prisma.recurringPlan.findUnique({ where: { id: planId } });
     if (!plan || !plan.isActive) return error(res, 'Plan not found', 404);
 
-    // Generate subscription number
-    const subscriptionNo = 'SUB-' + Date.now() + Math.floor(1000 + Math.random() * 9000);
+    // Build order lines
+    const orderLineData = [];
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+        include: { variants: true },
+      });
+      if (!product || !product.isActive) continue;
 
-    // Calculate expiration based on billing period
+      let unitPrice = Number(product.salesPrice);
+      if (item.variantId) {
+        const variant = product.variants.find(v => v.id === item.variantId);
+        if (variant) unitPrice += Number(variant.extraPrice);
+      }
+      const qty = item.quantity || 1;
+
+      orderLineData.push({
+        productId: item.productId,
+        variantId: item.variantId || null,
+        quantity: qty,
+        unitPrice,
+        amount: qty * unitPrice,
+      });
+    }
+
+    if (orderLineData.length === 0) return error(res, 'No valid products selected', 400);
+
+    const subscriptionNo = 'SUB-' + Date.now() + Math.floor(1000 + Math.random() * 9000);
     const startDate = new Date();
     const expirationDate = new Date();
     const periodDays = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
     expirationDate.setDate(expirationDate.getDate() + (periodDays[plan.billingPeriod] || 30));
-
-    // Build order lines from selected products
-    const orderLineData = [];
-    if (products && products.length > 0) {
-      for (const item of products) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          include: { variants: true },
-        });
-        if (!product) continue;
-
-        let unitPrice = Number(product.salesPrice);
-        if (item.variantId) {
-          const variant = product.variants.find(v => v.id === item.variantId);
-          if (variant) unitPrice += Number(variant.extraPrice);
-        }
-        const qty = item.quantity || 1;
-
-        orderLineData.push({
-          productId: item.productId,
-          variantId: item.variantId || null,
-          quantity: qty,
-          unitPrice,
-          amount: qty * unitPrice,
-        });
-      }
-    }
 
     const subscription = await prisma.subscription.create({
       data: {
@@ -474,46 +116,168 @@ const subscribe = async (req, res) => {
         planId,
         startDate,
         expirationDate,
-        paymentTerms: paymentTerms || 'Due on Receipt',
-        status: 'confirmed',
-        orderLines: orderLineData.length > 0 ? { create: orderLineData } : undefined,
+        paymentTerms: 'Due on Receipt',
+        notes: notes || null,
+        status: 'draft',
+        orderLines: { create: orderLineData },
       },
       include: {
         plan: { select: { name: true, billingPeriod: true, price: true } },
         orderLines: { include: { product: true, variant: true } },
+        customer: { select: { fullName: true, email: true } },
       },
     });
 
-    // Log status
-    await prisma.subscriptionStatusLog.create({
-      data: {
-        subscriptionId: subscription.id,
-        fromStatus: 'draft',
-        toStatus: 'confirmed',
-        changedById: req.user.id,
-        reason: 'Self-service subscription from portal',
-      },
-    });
-
-    return success(res, subscription, 'Subscription created successfully', 201);
+    return success(res, subscription, 'Subscription request submitted', 201);
   } catch (err) {
     console.error('Subscribe error:', err);
-    return error(res, 'Failed to create subscription');
+    return error(res, 'Failed to create subscription request');
+  }
+};
+
+// POST /shop/subscriptions/:id/accept - Portal user accepts quotation
+const acceptQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { id },
+      include: { plan: true, orderLines: true },
+    });
+
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+    if (subscription.status !== 'quotation') return error(res, 'Can only accept quotations', 400);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.update({
+        where: { id },
+        data: { status: 'confirmed' },
+        include: {
+          plan: true,
+          orderLines: { include: { product: true, variant: true } },
+          customer: { select: { fullName: true, email: true } },
+        },
+      });
+
+      await tx.subscriptionStatusLog.create({
+        data: {
+          subscriptionId: id,
+          fromStatus: 'quotation',
+          toStatus: 'confirmed',
+          changedById: req.user.id,
+          reason: 'Customer accepted quotation',
+        },
+      });
+
+      return sub;
+    });
+
+    return success(res, updated, 'Quotation accepted');
+  } catch (err) {
+    console.error('Accept quotation error:', err);
+    return error(res, 'Failed to accept quotation');
+  }
+};
+
+// POST /shop/subscriptions/:id/reject - Portal user rejects quotation
+const rejectQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+    if (subscription.status !== 'quotation') return error(res, 'Can only reject quotations', 400);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.update({
+        where: { id },
+        data: { status: 'closed' },
+      });
+
+      await tx.subscriptionStatusLog.create({
+        data: {
+          subscriptionId: id,
+          fromStatus: 'quotation',
+          toStatus: 'closed',
+          changedById: req.user.id,
+          reason: reason || 'Customer rejected quotation',
+        },
+      });
+
+      return sub;
+    });
+
+    return success(res, updated, 'Quotation rejected');
+  } catch (err) {
+    return error(res, 'Failed to reject quotation');
+  }
+};
+
+// POST /shop/subscriptions/:id/pay - Portal user pays for confirmed subscription via Stripe
+const paySubscription = async (req, res) => {
+  try {
+    const stripe = require('../config/stripe');
+    const config = require('../config/env');
+    const { id } = req.params;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { id },
+      include: {
+        orderLines: { include: { product: true, variant: true } },
+        customer: { select: { fullName: true, email: true } },
+        plan: true,
+      },
+    });
+
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+    if (subscription.status !== 'confirmed') return error(res, 'Subscription must be confirmed before payment', 400);
+
+    // Calculate total
+    const total = subscription.orderLines.reduce((sum, line) => sum + Number(line.amount), 0);
+
+    const lineItems = subscription.orderLines.map(line => ({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: line.product.name + (line.variant ? ` - ${line.variant.value}` : ''),
+        },
+        unit_amount: Math.round((Number(line.amount) / line.quantity) * 100),
+      },
+      quantity: line.quantity,
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: subscription.customer?.email,
+      line_items: lineItems,
+      metadata: {
+        subscriptionId: subscription.id,
+        subscriptionNo: subscription.subscriptionNo,
+        type: 'subscription_payment',
+      },
+      success_url: `${config.CLIENT_URL}/subscriptions/${subscription.id}?payment=success`,
+      cancel_url: `${config.CLIENT_URL}/subscriptions/${subscription.id}?payment=cancelled`,
+    });
+
+    return success(res, { sessionId: session.id, url: session.url });
+  } catch (err) {
+    console.error('Pay subscription error:', err);
+    return error(res, 'Failed to create payment session');
   }
 };
 
 module.exports = {
   getProducts,
   getProductDetail,
-  getCart,
-  addToCart,
-  updateCartItem,
-  removeCartItem,
-  applyDiscount,
-  checkout,
-  getOrders,
-  getOrderDetail,
-  stripeCheckout,
   getPlans,
   subscribe,
+  acceptQuotation,
+  rejectQuotation,
+  paySubscription,
 };

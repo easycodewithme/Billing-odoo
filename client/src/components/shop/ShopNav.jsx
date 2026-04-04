@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, LogOut, Menu, X, LayoutDashboard, Receipt, CreditCard, Package } from 'lucide-react';
+import { User, LogOut, Menu, X, LayoutDashboard, Receipt, CreditCard, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getCart } from '@/api/shop.api';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -17,36 +15,14 @@ import {
 export default function ShopNav() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [cartCount, setCartCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    fetchCartCount();
-  }, []);
-
-  const fetchCartCount = async () => {
-    try {
-      const res = await getCart();
-      const cart = res.data.data || res.data;
-      setCartCount(cart?.items?.length || 0);
-    } catch {
-      setCartCount(0);
-    }
-  };
-
-  // Expose refresh method globally so other components can trigger it
-  useEffect(() => {
-    window.__refreshCartCount = fetchCartCount;
-    return () => { delete window.__refreshCartCount; };
-  }, []);
 
   const initials = user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const navLinks = [
     { to: '/shop', label: 'Shop', icon: Package },
     { to: '/shop/plans', label: 'Plans', icon: CreditCard },
-    { to: '/shop/orders', label: 'My Orders', icon: Receipt },
-    { to: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { to: '/subscriptions', label: 'My Subscriptions', icon: CreditCard },
     { to: '/invoices', label: 'Invoices', icon: Receipt },
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
@@ -77,16 +53,6 @@ export default function ShopNav() {
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
-          {/* Cart */}
-          <Button variant="ghost" size="icon" className="relative" onClick={() => navigate('/shop/cart')}>
-            <ShoppingCart className="size-5" />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 size-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
-                {cartCount}
-              </span>
-            )}
-          </Button>
-
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 rounded-full p-1 hover:bg-accent focus-visible:outline-none">

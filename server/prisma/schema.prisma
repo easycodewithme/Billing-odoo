@@ -79,8 +79,6 @@ model User {
   invoices         Invoice[]
   statusChanges    SubscriptionStatusLog[] @relation("StatusChangedBy")
   auditLogs        AuditLog[]
-  shopOrders       ShopOrder[] @relation("ShopOrderCustomer")
-
   @@map("users")
 }
 
@@ -101,8 +99,6 @@ model Product {
   invoiceLines       InvoiceLine[]
   quotationLines     QuotationTemplateLine[]
   discountProducts   DiscountProduct[]
-  shopOrderItems     ShopOrderItem[]
-
   @@map("products")
 }
 
@@ -117,8 +113,6 @@ model ProductVariant {
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderLines     OrderLine[]
   invoiceLines   InvoiceLine[]
-  shopOrderItems ShopOrderItem[]
-
   @@map("product_variants")
 }
 
@@ -371,55 +365,3 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-enum OrderStatus {
-  cart
-  pending
-  confirmed
-  shipped
-  delivered
-  cancelled
-}
-
-model ShopOrder {
-  id             String      @id @default(uuid())
-  orderNo        String      @unique
-  customerId     String
-  status         OrderStatus @default(cart)
-  shippingName   String?
-  shippingEmail  String?
-  shippingPhone  String?
-  shippingAddress String?
-  discountCode   String?
-  subtotal       Decimal     @default(0)
-  taxAmount      Decimal     @default(0)
-  discountAmount Decimal     @default(0)
-  total          Decimal     @default(0)
-  paymentMethod  String?
-  paidAt         DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  customer  User            @relation("ShopOrderCustomer", fields: [customerId], references: [id])
-  items     ShopOrderItem[]
-
-  @@map("shop_orders")
-}
-
-model ShopOrderItem {
-  id         String  @id @default(uuid())
-  orderId    String
-  productId  String
-  variantId  String?
-  quantity   Int     @default(1)
-  unitPrice  Decimal
-  taxRate    Decimal @default(0)
-  taxAmount  Decimal @default(0)
-  total      Decimal
-  createdAt  DateTime @default(now())
-
-  order   ShopOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product         @relation(fields: [productId], references: [id])
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-
-  @@map("shop_order_items")
-}

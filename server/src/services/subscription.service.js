@@ -189,12 +189,15 @@ const applyTemplate = async (subscriptionId, templateId) => {
 };
 
 /**
- * Renew a closed or expired subscription.
+ * Renew a closed or expired subscription by creating a NEW subscription.
  */
 const renewSubscription = async (subscriptionId, userId) => {
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { plan: true },
+    include: {
+      plan: true,
+      orderLines: true,
+    },
   });
 
   if (!subscription) throw new Error('Subscription not found');
@@ -206,30 +209,117 @@ const renewSubscription = async (subscriptionId, userId) => {
   const periodDays = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
   newExpiration.setDate(newExpiration.getDate() + (periodDays[subscription.plan.billingPeriod] || 30));
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const renewed = await tx.subscription.update({
-      where: { id: subscriptionId },
+  const newSubNo = generateSubscriptionNo();
+
+  // Clone the subscription with same order lines
+  const newSubscription = await prisma.$transaction(async (tx) => {
+    const created = await tx.subscription.create({
       data: {
-        status: 'active',
+        subscriptionNo: newSubNo,
+        customerId: subscription.customerId,
+        planId: subscription.planId,
         startDate: newStart,
         expirationDate: newExpiration,
+        paymentTerms: subscription.paymentTerms,
+        notes: `Renewed from ${subscription.subscriptionNo}`,
+        status: 'confirmed',
+        orderLines: subscription.orderLines.length > 0 ? {
+          create: subscription.orderLines.map(line => ({
+            productId: line.productId,
+            variantId: line.variantId || null,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            taxId: line.taxId || null,
+            discountId: line.discountId || null,
+            amount: line.amount,
+          })),
+        } : undefined,
+      },
+      include: {
+        customer: { select: { fullName: true, email: true } },
+        plan: { select: { name: true, billingPeriod: true } },
+        orderLines: { include: { product: true, variant: true } },
       },
     });
 
     await tx.subscriptionStatusLog.create({
       data: {
-        subscriptionId,
-        fromStatus: 'closed',
-        toStatus: 'active',
+        subscriptionId: created.id,
+        fromStatus: 'draft',
+        toStatus: 'confirmed',
         changedById: userId,
-        reason: 'Subscription renewed',
+        reason: `Renewed from ${subscription.subscriptionNo}`,
       },
     });
 
-    return renewed;
+    return created;
   });
 
-  return updated;
+  return newSubscription;
+};
+
+/**
+ * Create an upsell subscription from a confirmed or active subscription.
+ */
+const upsellSubscription = async (subscriptionId, newOrderLines, userId) => {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true },
+  });
+
+  if (!subscription) throw new Error('Subscription not found');
+  if (!['confirmed', 'active'].includes(subscription.status)) {
+    throw new Error('Can only upsell confirmed or active subscriptions');
+  }
+
+  const newSubNo = generateSubscriptionNo();
+  const newStart = new Date();
+  const newExpiration = new Date();
+  const periodDays = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
+  newExpiration.setDate(newExpiration.getDate() + (periodDays[subscription.plan.billingPeriod] || 30));
+
+  const newSubscription = await prisma.$transaction(async (tx) => {
+    const created = await tx.subscription.create({
+      data: {
+        subscriptionNo: newSubNo,
+        customerId: subscription.customerId,
+        planId: subscription.planId,
+        startDate: newStart,
+        expirationDate: newExpiration,
+        paymentTerms: subscription.paymentTerms,
+        notes: `Upsell from ${subscription.subscriptionNo}`,
+        status: 'confirmed',
+        orderLines: newOrderLines && newOrderLines.length > 0 ? {
+          create: newOrderLines.map(line => ({
+            productId: line.productId,
+            variantId: line.variantId || null,
+            quantity: line.quantity || 1,
+            unitPrice: line.unitPrice,
+            amount: (line.quantity || 1) * line.unitPrice,
+          })),
+        } : undefined,
+      },
+      include: {
+        customer: { select: { fullName: true, email: true } },
+        plan: { select: { name: true, billingPeriod: true } },
+        orderLines: { include: { product: true } },
+      },
+    });
+
+    await tx.subscriptionStatusLog.create({
+      data: {
+        subscriptionId: created.id,
+        fromStatus: 'draft',
+        toStatus: 'confirmed',
+        changedById: userId,
+        reason: `Upsell from ${subscription.subscriptionNo}`,
+      },
+    });
+
+    return created;
+  });
+
+  return newSubscription;
 };
 
 module.exports = {
@@ -237,4 +327,5 @@ module.exports = {
   transitionStatus,
   applyTemplate,
   renewSubscription,
+  upsellSubscription,
 };

@@ -10,3 +10,5 @@ export const addOrderLine = (subId, data) => api.post(`/subscriptions/${subId}/o
 export const updateOrderLine = (subId, lineId, data) => api.put(`/subscriptions/${subId}/order-lines/${lineId}`, data);
 export const deleteOrderLine = (subId, lineId) => api.delete(`/subscriptions/${subId}/order-lines/${lineId}`);
 export const renewSubscription = (id) => api.post(`/subscriptions/${id}/renew`);
+export const portalSubscriptionAction = (id, data) => api.post(`/subscriptions/${id}/portal-action`, data);
+export const upsellSubscription = (id, data) => api.post(`/subscriptions/${id}/upsell`, data);

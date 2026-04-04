@@ -48,7 +48,6 @@ const navSections = [
     label: 'Sales',
     items: [
       { to: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
-      { to: '/shop/orders', label: 'My Orders', icon: Package, roles: ['portal_user'] },
       { to: '/quotation-templates', label: 'Quotation Templates', icon: FileText, roles: ['admin', 'internal_user'] },
     ],
   },

@@ -147,6 +147,7 @@ export default function SubscriptionDetailPage() {
             subscriptionId={subscription.id}
             orderLines={subscription.orderLines || []}
             editable={isEditable}
+            readOnly={!['draft', 'quotation'].includes(subscription.status)}
             onRefresh={fetchSubscription}
           />
         </TabsContent>

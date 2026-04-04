@@ -128,6 +128,56 @@ const handleStripeWebhook = async (event) => {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
+
+      // Handle subscription payment
+      if (session.metadata?.type === 'subscription_payment') {
+        const subId = session.metadata.subscriptionId;
+        if (subId) {
+          // Generate invoice and mark as paid
+          const invoiceService = require('./invoice.service');
+          try {
+            const invoice = await invoiceService.generateInvoice(subId);
+            await invoiceService.confirmInvoice(invoice.id, null);
+
+            // Record payment
+            await prisma.payment.create({
+              data: {
+                invoiceId: invoice.id,
+                method: 'stripe',
+                amount: (session.amount_total || 0) / 100,
+                status: 'completed',
+                stripeSessionId: session.id,
+                stripePaymentIntentId: session.payment_intent || null,
+                reference: `Stripe: ${session.payment_intent || session.id}`,
+                paymentDate: new Date(),
+              },
+            });
+
+            await invoiceService.updatePaymentTotals(invoice.id);
+
+            // Activate subscription
+            await prisma.subscription.update({
+              where: { id: subId },
+              data: { status: 'active' },
+            });
+
+            await prisma.subscriptionStatusLog.create({
+              data: {
+                subscriptionId: subId,
+                fromStatus: 'confirmed',
+                toStatus: 'active',
+                reason: 'Payment received via Stripe',
+              },
+            });
+
+            console.log(`Subscription ${subId} activated after payment`);
+          } catch (err) {
+            console.error('Subscription payment processing error:', err);
+          }
+        }
+        return;
+      }
+
       const invoiceId = session.metadata?.invoiceId;
 
       if (!invoiceId) {

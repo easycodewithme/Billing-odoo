@@ -1,32 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ShoppingCart, ChevronLeft, Minus, Plus, Check } from 'lucide-react';
-import { getShopProduct } from '@/api/shop.api';
-import { addToCart } from '@/api/shop.api';
+import { ChevronLeft, Check, ShoppingCart } from 'lucide-react';
+import { getShopProduct, getShopPlans, submitSubscriptionRequest } from '@/api/shop.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+
+const PERIOD_LABELS = { daily: '/day', weekly: '/week', monthly: '/month', yearly: '/year' };
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [adding, setAdding] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchProduct();
+    fetchData();
   }, [id]);
 
-  const fetchProduct = async () => {
+  const fetchData = async () => {
     try {
-      const res = await getShopProduct(id);
-      setProduct(res.data.data || res.data);
+      const [prodRes, plansRes] = await Promise.all([
+        getShopProduct(id),
+        getShopPlans(),
+      ]);
+      setProduct(prodRes.data.data || prodRes.data);
+      const planList = plansRes.data.data || plansRes.data || [];
+      setPlans(Array.isArray(planList) ? planList : []);
     } catch {
       toast.error('Product not found');
       navigate('/shop');
@@ -37,44 +48,34 @@ export default function ProductDetailPage() {
 
   const currentPrice = Number(product?.salesPrice || 0) + Number(selectedVariant?.extraPrice || 0);
 
-  const handleAddToCart = async () => {
-    setAdding(true);
-    try {
-      await addToCart({
-        productId: product.id,
-        variantId: selectedVariant?.id || undefined,
-        quantity,
-      });
-      toast.success('Added to cart');
-      if (window.__refreshCartCount) window.__refreshCartCount();
-    } catch {
-      toast.error('Failed to add to cart');
-    } finally {
-      setAdding(false);
+  const handleSubscribe = async () => {
+    if (!selectedPlan) {
+      toast.error('Please select a subscription plan');
+      return;
     }
-  };
-
-  const handleBuyNow = async () => {
-    setAdding(true);
+    setSubmitting(true);
     try {
-      await addToCart({
-        productId: product.id,
-        variantId: selectedVariant?.id || undefined,
-        quantity,
+      await submitSubscriptionRequest({
+        planId: selectedPlan.id,
+        items: [{
+          productId: product.id,
+          variantId: selectedVariant?.id || undefined,
+          quantity,
+        }],
+        notes: notes || undefined,
       });
-      if (window.__refreshCartCount) window.__refreshCartCount();
-      navigate('/shop/checkout');
-    } catch {
-      toast.error('Failed to add to cart');
+      toast.success('Subscription request submitted! Our team will review and send you a quotation.');
+      navigate('/subscriptions');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit request');
     } finally {
-      setAdding(false);
+      setSubmitting(false);
     }
   };
 
   if (loading) return <LoadingSpinner className="h-64" />;
   if (!product) return null;
 
-  // Group variants by attribute
   const variantGroups = {};
   (product.variants || []).forEach((v) => {
     if (!variantGroups[v.attribute]) variantGroups[v.attribute] = [];
@@ -82,100 +83,117 @@ export default function ProductDetailPage() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-5xl px-4 py-6">
-        <button
-          onClick={() => navigate('/shop')}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
-        >
-          <ChevronLeft className="size-4" /> Back to Shop
-        </button>
+    <div className="mx-auto max-w-5xl px-4 py-6">
+      <button onClick={() => navigate('/shop')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
+        <ChevronLeft className="size-4" /> Back to Shop
+      </button>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Product Image */}
-          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-            {product.image ? (
-              <img src={product.image.startsWith('http') ? product.image : `/uploads/products/${product.image}`} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-8xl text-muted-foreground/20">{product.name.charAt(0)}</div>
+      <div className="grid gap-8 md:grid-cols-2">
+        {/* Image */}
+        <div className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+          {product.image ? (
+            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-8xl text-muted-foreground/20">{product.name.charAt(0)}</div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="space-y-5">
+          <div>
+            {product.productType && <Badge variant="secondary">{product.productType}</Badge>}
+            <h1 className="text-3xl font-bold mt-2">{product.name}</h1>
+            <p className="text-3xl font-bold text-primary mt-2">${currentPrice.toFixed(2)}</p>
+            {selectedVariant && (
+              <p className="text-sm text-muted-foreground">
+                Base ${Number(product.salesPrice).toFixed(2)} + ${Number(selectedVariant.extraPrice).toFixed(2)} ({selectedVariant.attribute}: {selectedVariant.value})
+              </p>
             )}
           </div>
 
-          {/* Product Info */}
-          <div className="space-y-6">
-            <div>
-              {product.productType && <Badge variant="secondary">{product.productType}</Badge>}
-              <h1 className="text-3xl font-bold mt-2">{product.name}</h1>
-              <p className="text-3xl font-bold text-primary mt-2">${currentPrice.toFixed(2)}</p>
-              {selectedVariant && (
-                <p className="text-sm text-muted-foreground">
-                  Base ${Number(product.salesPrice).toFixed(2)} + ${Number(selectedVariant.extraPrice).toFixed(2)} ({selectedVariant.attribute}: {selectedVariant.value})
-                </p>
-              )}
+          {product.description && <p className="text-muted-foreground">{product.description}</p>}
+
+          <Separator />
+
+          {/* Variant Selection */}
+          {Object.keys(variantGroups).length > 0 && (
+            <div className="space-y-3">
+              {Object.entries(variantGroups).map(([attr, variants]) => (
+                <div key={attr}>
+                  <Label className="mb-2 block">{attr}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {variants.map((v) => (
+                      <Button key={v.id} variant={selectedVariant?.id === v.id ? 'default' : 'outline'} size="sm"
+                        onClick={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}>
+                        {v.value}
+                        {Number(v.extraPrice) > 0 && ` (+$${Number(v.extraPrice).toFixed(2)})`}
+                        {selectedVariant?.id === v.id && <Check className="size-3 ml-1" />}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
+          )}
 
-            {product.description && (
-              <p className="text-muted-foreground">{product.description}</p>
-            )}
+          {/* Quantity */}
+          <div>
+            <Label className="mb-2 block">Quantity</Label>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => setQuantity(q => Math.max(1, q - 1))}>-</Button>
+              <span className="w-12 text-center text-lg font-medium">{quantity}</span>
+              <Button variant="outline" size="icon" onClick={() => setQuantity(q => q + 1)}>+</Button>
+            </div>
+          </div>
 
-            <Separator />
+          <Separator />
 
-            {/* Variant Selection */}
-            {Object.keys(variantGroups).length > 0 && (
-              <div className="space-y-4">
-                {Object.entries(variantGroups).map(([attr, variants]) => (
-                  <div key={attr}>
-                    <label className="text-sm font-medium mb-2 block">{attr}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {variants.map((v) => (
-                        <Button
-                          key={v.id}
-                          variant={selectedVariant?.id === v.id ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}
-                        >
-                          {v.value}
-                          {Number(v.extraPrice) > 0 && ` (+$${Number(v.extraPrice).toFixed(2)})`}
-                          {selectedVariant?.id === v.id && <Check className="size-3 ml-1" />}
-                        </Button>
-                      ))}
+          {/* Plan Selection */}
+          <div>
+            <Label className="mb-2 block font-semibold">Select Subscription Plan *</Label>
+            <div className="grid gap-2">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  onClick={() => setSelectedPlan(plan)}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedPlan?.id === plan.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`size-4 rounded-full border-2 flex items-center justify-center ${
+                      selectedPlan?.id === plan.id ? 'border-primary' : 'border-muted-foreground/30'
+                    }`}>
+                      {selectedPlan?.id === plan.id && <div className="size-2 rounded-full bg-primary" />}
+                    </div>
+                    <div>
+                      <p className="font-medium">{plan.name}</p>
+                      <p className="text-xs text-muted-foreground">Billed {plan.billingPeriod}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Quantity */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Quantity</label>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="icon" onClick={() => setQuantity(q => Math.max(1, q - 1))}>
-                  <Minus className="size-4" />
-                </Button>
-                <span className="w-12 text-center text-lg font-medium">{quantity}</span>
-                <Button variant="outline" size="icon" onClick={() => setQuantity(q => q + 1)}>
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Add to Cart */}
-            <Button size="lg" className="w-full" onClick={handleAddToCart} disabled={adding}>
-              <ShoppingCart className="size-5 mr-2" />
-              {adding ? 'Adding...' : `Add to Cart - $${(currentPrice * quantity).toFixed(2)}`}
-            </Button>
-            <Button size="lg" variant="outline" className="w-full" onClick={handleBuyNow} disabled={adding}>
-              Buy Now
-            </Button>
-
-            {/* Guarantees */}
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>30-day money back guarantee</p>
-              <p>Terms and conditions apply</p>
+                  <p className="font-bold">${Number(plan.price).toFixed(2)}<span className="text-sm font-normal text-muted-foreground">{PERIOD_LABELS[plan.billingPeriod]}</span></p>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Notes */}
+          <div>
+            <Label className="mb-2 block">Additional Notes (optional)</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requirements..." rows={2} />
+          </div>
+
+          <Separator />
+
+          {/* Subscribe Button */}
+          <Button size="lg" className="w-full" onClick={handleSubscribe} disabled={submitting || !selectedPlan}>
+            <ShoppingCart className="size-5 mr-2" />
+            {submitting ? 'Submitting...' : `Subscribe - $${(currentPrice * quantity).toFixed(2)}${PERIOD_LABELS[selectedPlan?.billingPeriod] || ''}`}
+          </Button>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Your request will be reviewed by our team. You will receive a quotation to accept before payment.
+          </p>
         </div>
       </div>
     </div>

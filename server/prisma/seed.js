@@ -6,8 +6,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Clearing existing data...');
   // Delete in correct order to respect foreign keys
-  await prisma.shopOrderItem.deleteMany();
-  await prisma.shopOrder.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.subscriptionStatusLog.deleteMany();
   await prisma.payment.deleteMany();

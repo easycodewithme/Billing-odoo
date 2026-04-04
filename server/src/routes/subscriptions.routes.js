@@ -79,7 +79,13 @@ router.delete(
   subscriptionsController.removeOrderLine
 );
 
-// POST /:id/renew - renew a closed subscription (admin, internal_user)
-router.post('/:id/renew', authenticate, authorize('admin', 'internal_user'), subscriptionsController.renew);
+// POST /:id/renew - renew a closed subscription (all authenticated users, ownership checked in controller)
+router.post('/:id/renew', authenticate, subscriptionsController.renew);
+
+// POST /:id/upsell - create upsell subscription (admin, internal_user)
+router.post('/:id/upsell', authenticate, authorize('admin', 'internal_user'), subscriptionsController.upsell);
+
+// POST /:id/portal-action - portal user close/pause/resume own subscription
+router.post('/:id/portal-action', authenticate, subscriptionsController.portalAction);
 
 module.exports = router;

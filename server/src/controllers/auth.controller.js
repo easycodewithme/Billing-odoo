@@ -262,6 +262,41 @@ const me = async (req, res) => {
   }
 };
 
+/**
+ * POST /auth/change-password
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await authService.comparePassword(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Current password is incorrect' });
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ message: 'Password must be 8+ chars with uppercase, lowercase, and special character' });
+    }
+
+    const hashedPassword = await authService.hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashedPassword },
+    });
+
+    return res.status(200).json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    return res.status(500).json({ message: 'Failed to change password' });
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -270,4 +305,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   me,
+  changePassword,
 };

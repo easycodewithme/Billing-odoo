@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Check, Zap } from 'lucide-react';
-import { getShopPlans, getShopProducts, selfSubscribe } from '@/api/shop.api';
+import { getShopPlans, getShopProducts, submitSubscriptionRequest } from '@/api/shop.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +67,7 @@ export default function ShopPlansPage() {
         quantity: 1,
       }));
 
-      const res = await selfSubscribe({
+      const res = await submitSubscriptionRequest({
         planId: selectedPlan.id,
         products: productItems.length > 0 ? productItems : undefined,
       });

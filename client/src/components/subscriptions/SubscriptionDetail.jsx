@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { updateSubscriptionStatus, renewSubscription } from '@/api/subscriptions.api';
+import { useAuth } from '@/hooks/useAuth';
+import { updateSubscriptionStatus, renewSubscription, portalSubscriptionAction } from '@/api/subscriptions.api';
+import { acceptQuotation, rejectQuotation, paySubscription } from '@/api/shop.api';
 import {
   Card,
   CardContent,
@@ -51,9 +53,55 @@ const STATUS_TRANSITIONS = {
 };
 
 export default function SubscriptionDetail({ subscription, onRefresh }) {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
   const [statusDialog, setStatusDialog] = useState(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  const handleAcceptQuotation = async () => {
+    setProcessing(true);
+    try {
+      await acceptQuotation(subscription.id);
+      toast.success('Quotation accepted! You can now proceed to payment.');
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to accept quotation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRejectQuotation = async () => {
+    setProcessing(true);
+    try {
+      await rejectQuotation(subscription.id, { reason: 'Customer declined' });
+      toast.success('Quotation rejected');
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject quotation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handlePaySubscription = async () => {
+    setProcessing(true);
+    try {
+      const res = await paySubscription(subscription.id);
+      const url = res.data?.data?.url;
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.error('Failed to create payment session');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   if (!subscription) return null;
 
@@ -76,6 +124,19 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
       onRefresh?.();
     } catch {
       toast.error('Failed to renew subscription');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePortalAction = async (action) => {
+    setSubmitting(true);
+    try {
+      await portalSubscriptionAction(subscription.id, { action, reason: `Customer ${action}` });
+      toast.success(`Subscription ${action}d successfully`);
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Failed to ${action} subscription`);
     } finally {
       setSubmitting(false);
     }
@@ -164,14 +225,14 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
       </Card>
 
       {/* Status Actions */}
-      {(availableTransitions.length > 0 || subscription.status === 'closed') && (
+      {(availableTransitions.length > 0 || subscription.status === 'closed' || !isStaff) && (
         <Card>
           <CardHeader>
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {availableTransitions.map((transition) => {
+              {isStaff && availableTransitions.map((transition) => {
                 const Icon = transition.icon;
                 return (
                   <Button
@@ -184,10 +245,60 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
                   </Button>
                 );
               })}
-              {subscription.status === 'closed' && plan.renewable !== false && (
+              {isStaff && subscription.status === 'closed' && plan.renewable !== false && (
                 <Button onClick={handleRenew} disabled={submitting}>
                   <RotateCcw className="size-4" />
                   Renew
+                </Button>
+              )}
+              {isStaff && ['confirmed', 'active'].includes(subscription.status) && (
+                <Button variant="outline" onClick={() => toast.info('Upsell: Create a new subscription with upgraded products for this customer')}>
+                  Upsell
+                </Button>
+              )}
+              {/* Portal: Accept/Reject Quotation */}
+              {!isStaff && subscription.status === 'quotation' && (
+                <>
+                  <Button onClick={handleAcceptQuotation} disabled={processing}>
+                    Accept Quotation
+                  </Button>
+                  <Button variant="destructive" onClick={handleRejectQuotation} disabled={processing}>
+                    Reject Quotation
+                  </Button>
+                </>
+              )}
+
+              {/* Portal: Pay for confirmed subscription */}
+              {!isStaff && subscription.status === 'confirmed' && (
+                <Button onClick={handlePaySubscription} disabled={processing}
+                  className="bg-[#635BFF] hover:bg-[#5851db] text-white">
+                  Pay Now with Stripe
+                </Button>
+              )}
+
+              {/* Portal user actions */}
+              {!isStaff && subscription.status === 'active' && (
+                <>
+                  {subscription.plan?.pausable && (
+                    <Button variant="outline" onClick={() => handlePortalAction('pause')} disabled={submitting}>
+                      Pause Subscription
+                    </Button>
+                  )}
+                  {subscription.plan?.closable && (
+                    <Button variant="destructive" onClick={() => handlePortalAction('close')} disabled={submitting}>
+                      Cancel Subscription
+                    </Button>
+                  )}
+                </>
+              )}
+              {!isStaff && subscription.status === 'paused' && (
+                <Button onClick={() => handlePortalAction('resume')} disabled={submitting}>
+                  Resume Subscription
+                </Button>
+              )}
+              {!isStaff && subscription.status === 'closed' && subscription.plan?.renewable && (
+                <Button onClick={handleRenew} disabled={submitting}>
+                  Renew Subscription
                 </Button>
               )}
             </div>
