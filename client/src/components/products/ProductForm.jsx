@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { Upload, X, Link as LinkIcon } from 'lucide-react';
 import { createProduct, updateProduct } from '@/api/products.api';
+import { uploadFile } from '@/api/upload.api';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,9 @@ const initialForm = {
 export default function ProductForm({ open, onOpenChange, product, onSuccess }) {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageMode, setImageMode] = useState('upload'); // 'upload' or 'url'
+  const fileRef = useRef(null);
 
   const isEdit = !!product;
 
@@ -46,13 +51,42 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
         description: product.description || '',
         image: product.image || '',
       });
+      setImageMode(product.image?.startsWith('http') ? 'url' : 'upload');
     } else {
       setForm(initialForm);
+      setImageMode('upload');
     }
   }, [product, open]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const res = await uploadFile('products', file);
+      const data = res.data?.data || res.data;
+      const imagePath = data?.path || data?.filename || '';
+      handleChange('image', `/uploads/products/${imagePath}`);
+      toast.success('Image uploaded');
+    } catch {
+      toast.error('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -82,7 +116,7 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Product' : 'Add Product'}</DialogTitle>
           <DialogDescription>
@@ -157,16 +191,77 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
             />
           </div>
 
+          {/* Image Upload / URL */}
           <div className="space-y-2">
-            <Label htmlFor="image">Image URL</Label>
-            <Input
-              id="image"
-              value={form.image}
-              onChange={(e) => handleChange('image', e.target.value)}
-              placeholder="https://example.com/image.jpg"
-            />
+            <div className="flex items-center justify-between">
+              <Label>Product Image</Label>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  variant={imageMode === 'upload' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={() => setImageMode('upload')}
+                >
+                  <Upload className="size-3 mr-1" /> Upload
+                </Button>
+                <Button
+                  type="button"
+                  variant={imageMode === 'url' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={() => setImageMode('url')}
+                >
+                  <LinkIcon className="size-3 mr-1" /> URL
+                </Button>
+              </div>
+            </div>
+
+            {imageMode === 'upload' ? (
+              <div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <Upload className="size-4 mr-2" />
+                  {uploading ? 'Uploading...' : 'Choose Image'}
+                </Button>
+              </div>
+            ) : (
+              <Input
+                value={form.image}
+                onChange={(e) => handleChange('image', e.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+            )}
+
+            {/* Preview */}
             {form.image && (
-              <img src={form.image} alt="Preview" className="h-20 w-20 object-cover rounded border mt-1" onError={(e) => { e.target.style.display = 'none'; }} />
+              <div className="relative inline-block">
+                <img
+                  src={form.image}
+                  alt="Preview"
+                  className="h-24 w-24 object-cover rounded-lg border"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <button
+                  type="button"
+                  className="absolute -top-2 -right-2 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                  onClick={() => handleChange('image', '')}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -174,7 +269,7 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || uploading}>
               {submitting ? 'Saving...' : isEdit ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
