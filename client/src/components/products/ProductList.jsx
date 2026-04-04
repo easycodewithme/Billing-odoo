@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { getProducts, deleteProduct } from '@/api/products.api';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import VariantManager from './VariantManager';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProductList({ onEdit, refreshKey }) {
@@ -15,6 +17,7 @@ export default function ProductList({ onEdit, refreshKey }) {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [variantProduct, setVariantProduct] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,6 +61,7 @@ export default function ProductList({ onEdit, refreshKey }) {
 
   const actions = (row) => [
     { label: 'Edit', icon: Pencil, onClick: () => onEdit?.(row) },
+    { label: 'Variants', icon: Layers, onClick: () => setVariantProduct(row) },
     ...(isAdmin
       ? [{ label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) }]
       : []),
@@ -83,6 +87,18 @@ export default function ProductList({ onEdit, refreshKey }) {
         description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
         onConfirm={handleDelete}
       />
+
+      {/* Variant Manager Dialog */}
+      <Dialog open={!!variantProduct} onOpenChange={(open) => !open && setVariantProduct(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Variants - {variantProduct?.name}</DialogTitle>
+          </DialogHeader>
+          {variantProduct && (
+            <VariantManager productId={variantProduct.id} onRefresh={fetchData} />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

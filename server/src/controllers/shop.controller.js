@@ -173,7 +173,18 @@ const acceptQuotation = async (req, res) => {
       return sub;
     });
 
-    return success(res, updated, 'Quotation accepted');
+    // Auto-generate and confirm invoice
+    let invoice = null;
+    try {
+      const invoiceService = require('../services/invoice.service');
+      invoice = await invoiceService.generateInvoice(id);
+      await invoiceService.confirmInvoice(invoice.id, req.user.id);
+      console.log(`Auto-generated invoice ${invoice.invoiceNo} for subscription ${id}`);
+    } catch (invErr) {
+      console.warn('Auto-invoice generation failed:', invErr.message);
+    }
+
+    return success(res, { ...updated, invoice }, 'Quotation accepted. Invoice generated - please proceed to payment.');
   } catch (err) {
     console.error('Accept quotation error:', err);
     return error(res, 'Failed to accept quotation');

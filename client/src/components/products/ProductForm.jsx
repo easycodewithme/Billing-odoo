@@ -27,6 +27,7 @@ const initialForm = {
   salesPrice: '',
   costPrice: '',
   description: '',
+  image: '',
 };
 
 export default function ProductForm({ open, onOpenChange, product, onSuccess }) {
@@ -39,10 +40,11 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
     if (product) {
       setForm({
         name: product.name || '',
-        productType: product.productType || 'service',
+        productType: product.productType || 'SaaS',
         salesPrice: product.salesPrice ?? '',
         costPrice: product.costPrice ?? '',
         description: product.description || '',
+        image: product.image || '',
       });
     } else {
       setForm(initialForm);
@@ -153,6 +155,19 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
               placeholder="Product description"
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image">Image URL</Label>
+            <Input
+              id="image"
+              value={form.image}
+              onChange={(e) => handleChange('image', e.target.value)}
+              placeholder="https://example.com/image.jpg"
+            />
+            {form.image && (
+              <img src={form.image} alt="Preview" className="h-20 w-20 object-cover rounded border mt-1" onError={(e) => { e.target.style.display = 'none'; }} />
+            )}
           </div>
 
           <DialogFooter>
