@@ -56,13 +56,13 @@ const navSections = [
     items: [
       { to: '/invoices', label: 'Invoices', icon: Receipt },
       { to: '/payments', label: 'Payments', icon: Wallet },
+      { to: '/discounts', label: 'Discounts', icon: Tag },
     ],
   },
   {
     label: 'Config',
     items: [
       { to: '/taxes', label: 'Taxes', icon: Percent, roles: ['admin', 'internal_user'] },
-      { to: '/discounts', label: 'Discounts', icon: Tag, roles: ['admin', 'internal_user'] },
       { to: '/users', label: 'Users', icon: Users, roles: ['admin'] },
     ],
   },

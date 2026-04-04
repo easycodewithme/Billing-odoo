@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Menu, LogOut, Settings, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,7 +23,7 @@ function getInitials(name) {
     .slice(0, 2);
 }
 
-export default function Header({ onToggleSidebar }) {
+export default function Header({ onToggleSidebar, collapsed }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -31,14 +32,19 @@ export default function Header({ onToggleSidebar }) {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 z-30 flex h-14 items-center border-b bg-background px-4 shadow-sm">
-      {/* Left side */}
-      <div className="flex items-center gap-4">
+    <header
+      className={cn(
+        'fixed top-0 right-0 left-0 z-30 flex h-14 items-center border-b bg-background px-4 shadow-sm transition-all duration-300',
+        collapsed ? 'md:left-[70px]' : 'md:left-[260px]'
+      )}
+    >
+      {/* Mobile hamburger only */}
+      <div className="flex items-center gap-4 md:hidden">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={onToggleSidebar}>
           <Menu className="size-5" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
-        <span className="hidden text-lg font-bold tracking-tight sm:inline-block">SubManager</span>
+        <span className="text-lg font-bold tracking-tight">SubManager</span>
       </div>
 
       {/* Right side */}
@@ -48,7 +54,7 @@ export default function Header({ onToggleSidebar }) {
         </span>
         {user?.role && (
           <Badge variant="secondary" className="hidden capitalize sm:inline-flex">
-            {user.role}
+            {user.role.replace('_', ' ')}
           </Badge>
         )}
 

@@ -47,14 +47,7 @@ export default function MainLayout() {
       </Sheet>
 
       {/* Header */}
-      <div
-        className={cn(
-          'transition-all duration-300',
-          collapsed ? 'md:pl-[70px]' : 'md:pl-[260px]'
-        )}
-      >
-        <Header onToggleSidebar={toggleSidebar} />
-      </div>
+      <Header onToggleSidebar={toggleSidebar} collapsed={collapsed} />
 
       {/* Main content */}
       <main
