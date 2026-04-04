@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Activity, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { Activity, DollarSign, TrendingUp, AlertCircle, CreditCard, FileText, Receipt } from 'lucide-react';
 import {
   getDashboardStats,
   getRevenueReport,
   getSubscriptionReport,
   getOverdueInvoices,
 } from '@/api/reports.api';
+import { getSubscriptions } from '@/api/subscriptions.api';
+import { getInvoices } from '@/api/invoices.api';
+import { useAuth } from '@/hooks/useAuth';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import StatsCard from '@/components/dashboard/StatsCard';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import SubscriptionChart from '@/components/dashboard/SubscriptionChart';
 import OverdueInvoices from '@/components/dashboard/OverdueInvoices';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import StatusBadge from '@/components/shared/StatusBadge';
 
-export default function DashboardPage() {
+// ── Admin/Internal Dashboard ──
+function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [revenueData, setRevenueData] = useState([]);
@@ -36,12 +44,9 @@ export default function DashboardPage() {
       ]);
       setStats(statsRes.data.data || statsRes.data);
 
-      // Revenue: backend returns array directly in data
       const revData = revenueRes.data.data || revenueRes.data || [];
       setRevenueData(Array.isArray(revData) ? revData : []);
 
-      // Subscriptions: backend returns { byStatus: { draft: 1, active: 2 }, trend: [...] }
-      // Transform byStatus object into array for PieChart: [{ status: 'draft', count: 1 }, ...]
       const subData = subRes.data.data || subRes.data || {};
       const byStatus = subData.byStatus || {};
       if (Array.isArray(byStatus)) {
@@ -61,9 +66,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner className="h-64" />;
-  }
+  if (loading) return <LoadingSpinner className="h-64" />;
 
   const activeSubscriptions = stats?.activeSubscriptions ?? 0;
   const mrr = stats?.mrr ?? 0;
@@ -71,41 +74,14 @@ export default function DashboardPage() {
   const overdueCount = stats?.overdueInvoicesCount ?? stats?.overdueInvoices ?? overdueInvoices.length;
 
   return (
-    <div className="space-y-6 p-6">
-      <PageHeader title="Dashboard" description="Overview of your subscription business" />
-
-      {/* Stats Row */}
+    <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard
-          title="Active Subscriptions"
-          value={activeSubscriptions}
-          icon={Activity}
-          description="Currently active"
-        />
-        <StatsCard
-          title="MRR"
-          value={`$${Number(mrr).toFixed(2)}`}
-          icon={DollarSign}
-          description="Monthly recurring revenue"
-        />
-        <StatsCard
-          title="Total Revenue"
-          value={`$${Number(totalRevenue).toFixed(2)}`}
-          icon={TrendingUp}
-          description="All-time revenue"
-        />
-        <StatsCard
-          title="Overdue Invoices"
-          value={overdueCount}
-          icon={AlertCircle}
-          description="Requires attention"
-        />
+        <StatsCard title="Active Subscriptions" value={activeSubscriptions} icon={Activity} description="Currently active" />
+        <StatsCard title="MRR" value={`$${Number(mrr).toFixed(2)}`} icon={DollarSign} description="Monthly recurring revenue" />
+        <StatsCard title="Total Revenue" value={`$${Number(totalRevenue).toFixed(2)}`} icon={TrendingUp} description="All-time revenue" />
+        <StatsCard title="Overdue Invoices" value={overdueCount} icon={AlertCircle} description="Requires attention" />
       </div>
-
-      {/* Revenue Chart */}
       <RevenueChart data={revenueData} />
-
-      {/* Bottom Row */}
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
           <SubscriptionChart data={subscriptionData} />
@@ -114,6 +90,123 @@ export default function DashboardPage() {
           <OverdueInvoices invoices={overdueInvoices} />
         </div>
       </div>
+    </>
+  );
+}
+
+// ── Portal User Dashboard ──
+function PortalDashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    fetchPortalData();
+  }, []);
+
+  const fetchPortalData = async () => {
+    setLoading(true);
+    try {
+      const [subRes, invRes] = await Promise.all([
+        getSubscriptions({ limit: 100 }),
+        getInvoices({ limit: 100 }),
+      ]);
+      setSubscriptions(subRes.data.data || []);
+      setInvoices(invRes.data.data || []);
+    } catch {
+      toast.error('Failed to load your data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner className="h-64" />;
+
+  const activeSubs = subscriptions.filter(s => s.status === 'active').length;
+  const totalSubs = subscriptions.length;
+  const pendingInvoices = invoices.filter(i => i.status === 'confirmed').length;
+  const totalOutstanding = invoices
+    .filter(i => i.status === 'confirmed')
+    .reduce((sum, i) => sum + Number(i.outstandingAmount || 0), 0);
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatsCard title="My Subscriptions" value={totalSubs} icon={CreditCard} description={`${activeSubs} active`} />
+        <StatsCard title="Pending Invoices" value={pendingInvoices} icon={FileText} description="Awaiting payment" />
+        <StatsCard title="Outstanding Amount" value={`$${totalOutstanding.toFixed(2)}`} icon={DollarSign} description="Total due" />
+        <StatsCard title="Active Plans" value={activeSubs} icon={Activity} description="Currently running" />
+      </div>
+
+      {/* Recent Subscriptions */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2"><CreditCard className="size-5" /> My Subscriptions</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => navigate('/subscriptions')}>View All</Button>
+        </CardHeader>
+        <CardContent>
+          {subscriptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No subscriptions yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {subscriptions.slice(0, 5).map(sub => (
+                <div key={sub.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <p className="text-sm font-medium">{sub.subscriptionNo}</p>
+                    <p className="text-xs text-muted-foreground">{sub.plan?.name || '-'}</p>
+                  </div>
+                  <StatusBadge status={sub.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pending Invoices */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2"><Receipt className="size-5" /> Pending Invoices</CardTitle>
+          <Button variant="outline" size="sm" onClick={() => navigate('/invoices')}>View All</Button>
+        </CardHeader>
+        <CardContent>
+          {invoices.filter(i => i.status === 'confirmed').length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No pending invoices.</p>
+          ) : (
+            <div className="space-y-3">
+              {invoices.filter(i => i.status === 'confirmed').slice(0, 5).map(inv => (
+                <div key={inv.id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:bg-accent/50" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                  <div>
+                    <p className="text-sm font-medium">{inv.invoiceNo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Due: {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '-'}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold">${Number(inv.outstandingAmount || 0).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+// ── Main Dashboard ──
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
+
+  return (
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title={isStaff ? 'Dashboard' : `Welcome, ${user?.fullName || 'User'}`}
+        description={isStaff ? 'Overview of your subscription business' : 'Your subscription portal'}
+      />
+      {isStaff ? <StaffDashboard /> : <PortalDashboard />}
     </div>
   );
 }
