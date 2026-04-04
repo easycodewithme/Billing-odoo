@@ -13,9 +13,12 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import SubscriptionDetail from '@/components/subscriptions/SubscriptionDetail';
 import OrderLineTable from '@/components/subscriptions/OrderLineTable';
 import StatusTimeline from '@/components/subscriptions/StatusTimeline';
+import { useAuth } from '@/hooks/useAuth';
 import { SUBSCRIPTION_STATUS } from '@/lib/constants';
 
 export default function SubscriptionDetailPage() {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
   const { id } = useParams();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState(null);
@@ -78,9 +81,11 @@ export default function SubscriptionDetailPage() {
     );
   }
 
-  const isEditable =
+  // Only staff can edit, and only in draft/quotation
+  const isEditable = isStaff && (
     subscription.status === SUBSCRIPTION_STATUS.DRAFT ||
-    subscription.status === 'quotation';
+    subscription.status === 'quotation'
+  );
 
   const invoiceColumns = [
     { key: 'invoiceNo', label: 'Invoice No' },
@@ -153,12 +158,14 @@ export default function SubscriptionDetailPage() {
         </TabsContent>
 
         <TabsContent value="invoices" className="mt-6 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={handleGenerateInvoice} disabled={generating}>
-              <FileText className="size-4" />
-              {generating ? 'Generating...' : 'Generate Invoice'}
-            </Button>
-          </div>
+          {isStaff && (
+            <div className="flex justify-end">
+              <Button onClick={handleGenerateInvoice} disabled={generating}>
+                <FileText className="size-4" />
+                {generating ? 'Generating...' : 'Generate Invoice'}
+              </Button>
+            </div>
+          )}
           <DataTable
             columns={invoiceColumns}
             data={invoices}

@@ -32,16 +32,18 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
+// Staff transitions: Internal user should NOT activate (that happens via payment)
+// Internal can: send quotation (draft→quotation), confirm quotation (quotation→confirmed)
+// Only system/webhook should activate (confirmed→active after payment)
+// Staff can pause/close active subs
 const STATUS_TRANSITIONS = {
   [SUBSCRIPTION_STATUS.DRAFT]: [
     { target: 'quotation', label: 'Send Quotation', icon: Send, variant: 'default' },
   ],
   quotation: [
-    { target: 'confirmed', label: 'Confirm', icon: CheckCircle, variant: 'default' },
+    { target: 'confirmed', label: 'Confirm Quotation', icon: CheckCircle, variant: 'default' },
   ],
-  [SUBSCRIPTION_STATUS.CONFIRMED]: [
-    { target: 'active', label: 'Activate', icon: Play, variant: 'default' },
-  ],
+  // No manual activation - happens automatically after payment
   [SUBSCRIPTION_STATUS.ACTIVE]: [
     { target: 'paused', label: 'Pause', icon: Pause, variant: 'secondary', requirePausable: true },
     { target: 'closed', label: 'Close', icon: XCircle, variant: 'destructive', requireClosable: true },
