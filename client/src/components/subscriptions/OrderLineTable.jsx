@@ -121,13 +121,13 @@ export default function OrderLineTable({
   const openEdit = (line) => {
     setEditLine(line);
     setForm({
-      productId: line.productId?.id || line.productId || '',
-      variantId: line.variantId?.id || line.variantId || '',
+      productId: line.product?.id || line.productId?.id || line.productId || '',
+      variantId: line.variant?.id || line.variantId?.id || line.variantId || '',
       quantity: line.quantity || 1,
       unitPrice: line.unitPrice ?? '',
-      taxId: line.taxId?.id || line.taxId || '',
+      taxId: line.tax?.id || line.taxId?.id || line.taxId || '',
     });
-    const pid = line.productId?.id || line.productId;
+    const pid = line.product?.id || line.productId?.id || line.productId;
     if (pid) fetchVariants(pid);
     setFormOpen(true);
   };
@@ -177,7 +177,7 @@ export default function OrderLineTable({
 
   const taxTotal = orderLines.reduce((sum, line) => {
     const amount = (line.quantity || 0) * (line.unitPrice || 0);
-    const taxRate = line.taxId?.rate || 0;
+    const taxRate = line.tax?.rate || line.taxId?.rate || 0;
     return sum + amount * (taxRate / 100);
   }, 0);
 
@@ -220,14 +220,14 @@ export default function OrderLineTable({
             )}
             {orderLines.map((line) => {
               const lineAmount = (line.quantity || 0) * (line.unitPrice || 0);
-              const taxRate = line.taxId?.rate || 0;
+              const taxRate = line.tax?.rate || line.taxId?.rate || 0;
               return (
                 <TableRow key={line.id}>
                   <TableCell>
-                    {line.productId?.name || '-'}
+                    {line.product?.name || line.productId?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    {line.variantId?.name || '-'}
+                    {line.variant?.name || line.variantId?.name || '-'}
                   </TableCell>
                   <TableCell className="text-right">{line.quantity}</TableCell>
                   <TableCell className="text-right">

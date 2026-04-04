@@ -22,7 +22,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import StatusBadge from '@/components/shared/StatusBadge';
-import { SUBSCRIPTION_STATUS } from '@/lib/constants';
+import { SUBSCRIPTION_STATUS, BILLING_PERIOD_LABELS } from '@/lib/constants';
 import {
   Send,
   CheckCircle,
@@ -189,7 +189,7 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
               <p className="text-sm">{plan.name || '-'}</p>
               <p className="text-xs text-muted-foreground">
                 {plan.billingPeriod
-                  ? `Billing: ${plan.billingPeriod.charAt(0).toUpperCase() + plan.billingPeriod.slice(1)}`
+                  ? `Billing: ${BILLING_PERIOD_LABELS[plan.billingPeriod] || plan.billingPeriod}`
                   : ''}
               </p>
             </div>

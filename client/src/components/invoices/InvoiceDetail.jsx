@@ -70,8 +70,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       await confirmInvoice(invoice.id);
       toast.success('Invoice confirmed');
       onRefresh?.();
-    } catch {
-      toast.error('Failed to confirm invoice');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to confirm invoice');
     } finally {
       setProcessing(false);
     }
@@ -83,8 +83,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       await cancelInvoice(invoice.id);
       toast.success('Invoice cancelled');
       onRefresh?.();
-    } catch {
-      toast.error('Failed to cancel invoice');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel invoice');
     } finally {
       setProcessing(false);
     }
@@ -102,8 +102,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       link.click();
       window.URL.revokeObjectURL(url);
       toast.success('PDF downloaded');
-    } catch {
-      toast.error('Failed to download PDF');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download PDF');
     } finally {
       setProcessing(false);
     }
@@ -114,8 +114,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
     try {
       await sendInvoice(invoice.id);
       toast.success('Invoice sent to customer');
-    } catch {
-      toast.error('Failed to send invoice');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send invoice');
     } finally {
       setProcessing(false);
     }
@@ -127,8 +127,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       await revertInvoiceToDraft(invoice.id);
       toast.success('Invoice reverted to draft');
       onRefresh?.();
-    } catch {
-      toast.error('Failed to revert invoice');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to revert invoice');
     } finally {
       setProcessing(false);
     }
@@ -144,8 +144,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       } else {
         toast.error('Could not create checkout session');
       }
-    } catch {
-      toast.error('Failed to create Stripe checkout');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create Stripe checkout');
     } finally {
       setProcessing(false);
     }

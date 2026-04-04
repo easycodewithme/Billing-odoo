@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Activity, DollarSign, TrendingUp, AlertCircle, CreditCard, FileText, Receipt } from 'lucide-react';
+import { Activity, DollarSign, TrendingUp, AlertCircle, CreditCard, FileText, Receipt, RefreshCw } from 'lucide-react';
 import {
   getDashboardStats,
   getRevenueReport,
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/shared/StatusBadge';
 
 // ── Admin/Internal Dashboard ──
-function StaffDashboard() {
+function StaffDashboard({ refreshKey }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [revenueData, setRevenueData] = useState([]);
@@ -31,7 +31,7 @@ function StaffDashboard() {
 
   useEffect(() => {
     fetchDashboard();
-  }, []);
+  }, [refreshKey]);
 
   const fetchDashboard = async () => {
     setLoading(true);
@@ -95,7 +95,7 @@ function StaffDashboard() {
 }
 
 // ── Portal User Dashboard ──
-function PortalDashboard() {
+function PortalDashboard({ refreshKey }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ function PortalDashboard() {
 
   useEffect(() => {
     fetchPortalData();
-  }, []);
+  }, [refreshKey]);
 
   const fetchPortalData = async () => {
     setLoading(true);
@@ -199,14 +199,19 @@ function PortalDashboard() {
 export default function DashboardPage() {
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
     <div className="space-y-6 p-6">
       <PageHeader
         title={isStaff ? 'Dashboard' : `Welcome, ${user?.fullName || 'User'}`}
         description={isStaff ? 'Overview of your subscription business' : 'Your subscription portal'}
-      />
-      {isStaff ? <StaffDashboard /> : <PortalDashboard />}
+      >
+        <Button variant="outline" size="icon" onClick={() => setRefreshKey(k => k + 1)}>
+          <RefreshCw className="size-4" />
+        </Button>
+      </PageHeader>
+      {isStaff ? <StaffDashboard refreshKey={refreshKey} /> : <PortalDashboard refreshKey={refreshKey} />}
     </div>
   );
 }

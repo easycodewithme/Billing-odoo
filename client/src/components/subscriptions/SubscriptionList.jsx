@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Pencil } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSubscriptions } from '@/api/subscriptions.api';
-import { useAuth } from '@/hooks/useAuth';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -84,27 +83,13 @@ export default function SubscriptionList({ refreshKey }) {
     },
   ];
 
-  const { user } = useAuth();
-  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
-
-  const actions = (row) => {
-    const items = [
-      {
-        label: 'View',
-        icon: Eye,
-        onClick: () => navigate(`/subscriptions/${row.id}`),
-      },
-    ];
-    // Only staff can edit, and only in draft/quotation status
-    if (isStaff && (row.status === SUBSCRIPTION_STATUS.DRAFT || row.status === 'quotation')) {
-      items.push({
-        label: 'Edit',
-        icon: Pencil,
-        onClick: () => navigate(`/subscriptions/${row.id}`),
-      });
-    }
-    return items;
-  };
+  const actions = (row) => [
+    {
+      label: 'View',
+      icon: Eye,
+      onClick: () => navigate(`/subscriptions/${row.id}`),
+    },
+  ];
 
   return (
     <div className="space-y-4">

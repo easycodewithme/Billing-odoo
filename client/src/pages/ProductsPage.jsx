@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
 import ProductList from '@/components/products/ProductList';
@@ -27,10 +27,15 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader title="Products" description="Manage your product catalog">
-        <Button onClick={handleAdd}>
-          <Plus className="size-4" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => setRefreshKey(k => k + 1)}>
+            <RefreshCw className="size-4" />
+          </Button>
+          <Button onClick={handleAdd}>
+            <Plus className="size-4" />
+            Add Product
+          </Button>
+        </div>
       </PageHeader>
 
       <ProductList onEdit={handleEdit} refreshKey={refreshKey} />

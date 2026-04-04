@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function DiscountList({ onEdit, refreshKey }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
@@ -93,7 +93,7 @@ export default function DiscountList({ onEdit, refreshKey }) {
     },
   ];
 
-  const actions = isAdmin
+  const actions = isStaff
     ? (row) => [
         { label: 'Edit', icon: Pencil, onClick: () => onEdit?.(row) },
         { label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) },

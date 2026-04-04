@@ -13,6 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const initialForm = {
   name: '',
@@ -105,13 +112,21 @@ export default function TaxForm({ open, onOpenChange, tax, onSuccess }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="taxType">Type</Label>
-              <Input
-                id="taxType"
-                value={form.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-                placeholder="e.g. VAT, GST"
-              />
+              <Label htmlFor="taxType">Tax Type</Label>
+              <Select value={form.type} onValueChange={(val) => handleChange('type', val)}>
+                <SelectTrigger className="w-full" id="taxType">
+                  <SelectValue placeholder="Select tax type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GST">GST</SelectItem>
+                  <SelectItem value="VAT">VAT</SelectItem>
+                  <SelectItem value="Service Tax">Service Tax</SelectItem>
+                  <SelectItem value="Sales Tax">Sales Tax</SelectItem>
+                  <SelectItem value="Excise">Excise</SelectItem>
+                  <SelectItem value="Customs">Customs</SelectItem>
+                  <SelectItem value="Exempt">Tax Exempt</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

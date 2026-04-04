@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import PageHeader from '@/components/shared/PageHeader';
@@ -22,12 +22,17 @@ export default function SubscriptionsPage() {
         title="Subscriptions"
         description={isStaff ? 'Manage customer subscriptions' : 'Your subscriptions'}
       >
-        {isStaff && (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="size-4" />
-            New Subscription
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => setRefreshKey(k => k + 1)}>
+            <RefreshCw className="size-4" />
           </Button>
-        )}
+          {isStaff && (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="size-4" />
+              New Subscription
+            </Button>
+          )}
+        </div>
       </PageHeader>
 
       <SubscriptionList refreshKey={refreshKey} />
