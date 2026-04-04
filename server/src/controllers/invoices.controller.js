@@ -229,6 +229,27 @@ const downloadPDF = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /invoices/:id/revert-draft
+ * Revert a cancelled invoice back to draft status.
+ */
+const revertToDraft = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) return error(res, 'Invoice not found', 404);
+    if (invoice.status !== 'cancelled') return error(res, 'Only cancelled invoices can be reverted to draft', 400);
+
+    const updated = await prisma.invoice.update({
+      where: { id },
+      data: { status: 'draft', issuedAt: null, dueDate: null },
+    });
+    return success(res, updated, 'Invoice reverted to draft');
+  } catch (err) {
+    return error(res, 'Failed to revert invoice');
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -237,4 +258,5 @@ module.exports = {
   cancel,
   sendInvoice,
   downloadPDF,
+  revertToDraft,
 };

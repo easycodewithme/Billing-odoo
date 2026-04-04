@@ -64,6 +64,7 @@ const reportRoutes = require('./routes/reports.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const quotationRoutes = require('./routes/quotations.routes');
+const shopRoutes = require('./routes/shop.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -78,6 +79,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/quotation-templates', quotationRoutes);
+app.use('/api/shop', shopRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -43,6 +43,14 @@ router.post(
   invoicesController.sendInvoice
 );
 
+// PATCH /:id/revert-draft - revert cancelled invoice to draft (admin only)
+router.patch(
+  '/:id/revert-draft',
+  authenticate,
+  authorize('admin'),
+  invoicesController.revertToDraft
+);
+
 // GET /:id/pdf - download invoice PDF (auth required)
 router.get('/:id/pdf', authenticate, invoicesController.downloadPDF);
 
