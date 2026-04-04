@@ -14,6 +14,10 @@ const getAll = async (req, res) => {
 
     const where = {};
 
+    if (req.user.role === 'portal_user') {
+      where.invoice = { customerId: req.user.id };
+    }
+
     if (method) {
       where.method = method;
     }
@@ -77,6 +81,10 @@ const getById = async (req, res) => {
       return error(res, 'Payment not found', 404);
     }
 
+    if (req.user.role === 'portal_user' && payment.invoice?.customerId !== req.user.id) {
+      return error(res, 'Not authorized', 403);
+    }
+
     return success(res, payment);
   } catch (err) {
     console.error('Get payment by ID error:', err);
@@ -108,17 +116,19 @@ const recordManual = async (req, res) => {
 
 /**
  * POST /payments/checkout/:invoiceId
- * Create a Stripe checkout session (placeholder).
+ * Create a Stripe checkout session.
  */
 const createCheckout = async (req, res) => {
   try {
-    return success(res, {
-      invoiceId: req.params.invoiceId,
-      message: 'Stripe integration coming soon',
-    });
+    const { invoiceId } = req.params;
+
+    const session = await paymentService.createCheckoutSession(invoiceId);
+
+    return success(res, session, 'Checkout session created');
   } catch (err) {
     console.error('Create checkout error:', err);
-    return error(res, 'Failed to create checkout session');
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
   }
 };
 

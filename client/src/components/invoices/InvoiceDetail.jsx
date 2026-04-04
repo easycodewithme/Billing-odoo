@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { confirmInvoice, cancelInvoice } from '@/api/invoices.api';
+import { confirmInvoice, cancelInvoice, sendInvoice, downloadInvoicePDF } from '@/api/invoices.api';
+import { createCheckout } from '@/api/payments.api';
 import {
   Card,
   CardContent,
@@ -21,7 +22,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import PaymentForm from '@/components/payments/PaymentForm';
 import { INVOICE_STATUS, PAYMENT_METHOD_LABELS } from '@/lib/constants';
-import { CheckCircle, XCircle, CreditCard } from 'lucide-react';
+import { CheckCircle, XCircle, CreditCard, Download, Send } from 'lucide-react';
 
 export default function InvoiceDetail({ invoice, onRefresh }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -31,8 +32,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
 
   if (!invoice) return null;
 
-  const customer = invoice.customerId || {};
-  const lines = invoice.lines || [];
+  const customer = invoice.customer || {};
+  const lines = invoice.invoiceLines || [];
   const payments = invoice.payments || [];
 
   const subtotal = lines.reduce(
@@ -41,7 +42,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
   );
   const taxTotal = lines.reduce((sum, l) => {
     const amount = (l.quantity || 0) * (l.unitPrice || 0);
-    const taxRate = l.taxId?.rate || l.taxRate || 0;
+    const taxRate = l.tax?.rate || 0;
     return sum + amount * (taxRate / 100);
   }, 0);
   const discountTotal = lines.reduce(
@@ -63,7 +64,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
   const handleConfirm = async () => {
     setProcessing(true);
     try {
-      await confirmInvoice(invoice._id);
+      await confirmInvoice(invoice.id);
       toast.success('Invoice confirmed');
       onRefresh?.();
     } catch {
@@ -76,11 +77,59 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
   const handleCancel = async () => {
     setProcessing(true);
     try {
-      await cancelInvoice(invoice._id);
+      await cancelInvoice(invoice.id);
       toast.success('Invoice cancelled');
       onRefresh?.();
     } catch {
       toast.error('Failed to cancel invoice');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setProcessing(true);
+    try {
+      const response = await downloadInvoicePDF(invoice.id);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${invoice.invoiceNo}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF downloaded');
+    } catch {
+      toast.error('Failed to download PDF');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    setProcessing(true);
+    try {
+      await sendInvoice(invoice.id);
+      toast.success('Invoice sent to customer');
+    } catch {
+      toast.error('Failed to send invoice');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleStripeCheckout = async () => {
+    setProcessing(true);
+    try {
+      const response = await createCheckout(invoice.id);
+      const { url } = response.data?.data || response.data || {};
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.error('Could not create checkout session');
+      }
+    } catch {
+      toast.error('Failed to create Stripe checkout');
     } finally {
       setProcessing(false);
     }
@@ -101,8 +150,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Issue Date</p>
               <p className="text-sm">
-                {invoice.issueDate
-                  ? new Date(invoice.issueDate).toLocaleDateString()
+                {invoice.issuedAt
+                  ? new Date(invoice.issuedAt).toLocaleDateString()
                   : '-'}
               </p>
             </div>
@@ -170,8 +219,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
                 const lineAmount =
                   (line.quantity || 0) * (line.unitPrice || 0);
                 return (
-                  <TableRow key={line._id || idx}>
-                    <TableCell>{line.productId?.name || '-'}</TableCell>
+                  <TableRow key={line.id || idx}>
+                    <TableCell>{line.product?.name || '-'}</TableCell>
                     <TableCell>{line.description || '-'}</TableCell>
                     <TableCell className="text-right">
                       {line.quantity}
@@ -180,8 +229,8 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
                       ${Number(line.unitPrice || 0).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {line.taxId?.rate || line.taxRate
-                        ? `${line.taxId?.rate || line.taxRate}%`
+                      {line.tax?.rate
+                        ? `${line.tax?.rate}%`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right">
@@ -237,20 +286,20 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       </Card>
 
       {/* Actions */}
-      {(canConfirm || canCancel || canRecordPayment) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {canConfirm && (
-                <Button onClick={() => setConfirmOpen(true)} disabled={processing}>
-                  <CheckCircle className="size-4" />
-                  Confirm
-                </Button>
-              )}
-              {canRecordPayment && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {canConfirm && (
+              <Button onClick={() => setConfirmOpen(true)} disabled={processing}>
+                <CheckCircle className="size-4" />
+                Confirm
+              </Button>
+            )}
+            {canRecordPayment && (
+              <>
                 <Button
                   variant="secondary"
                   onClick={() => setPaymentOpen(true)}
@@ -258,21 +307,47 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
                   <CreditCard className="size-4" />
                   Record Payment
                 </Button>
-              )}
-              {canCancel && (
                 <Button
-                  variant="destructive"
-                  onClick={() => setCancelOpen(true)}
+                  onClick={handleStripeCheckout}
                   disabled={processing}
+                  className="bg-[#635BFF] hover:bg-[#5851db] text-white"
                 >
-                  <XCircle className="size-4" />
-                  Cancel
+                  <CreditCard className="size-4" />
+                  Pay with Stripe
                 </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleDownloadPDF}
+              disabled={processing}
+            >
+              <Download className="size-4" />
+              Download PDF
+            </Button>
+            {invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
+              <Button
+                variant="outline"
+                onClick={handleSendInvoice}
+                disabled={processing}
+              >
+                <Send className="size-4" />
+                Send Email
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                variant="destructive"
+                onClick={() => setCancelOpen(true)}
+                disabled={processing}
+              >
+                <XCircle className="size-4" />
+                Cancel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Payment History */}
       {payments.length > 0 && (
@@ -293,7 +368,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
               </TableHeader>
               <TableBody>
                 {payments.map((p) => (
-                  <TableRow key={p._id}>
+                  <TableRow key={p.id}>
                     <TableCell>
                       {p.paymentDate
                         ? new Date(p.paymentDate).toLocaleDateString()
@@ -341,7 +416,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
       <PaymentForm
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
-        invoiceId={invoice._id}
+        invoiceId={invoice.id}
         outstandingAmount={outstandingAmount}
         onSuccess={onRefresh}
       />

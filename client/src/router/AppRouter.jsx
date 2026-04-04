@@ -19,7 +19,10 @@ import DiscountsPage from '../pages/DiscountsPage';
 import TaxesPage from '../pages/TaxesPage';
 import UsersPage from '../pages/UsersPage';
 import ReportsPage from '../pages/ReportsPage';
+import ProfilePage from '../pages/ProfilePage';
 import NotFoundPage from '../pages/NotFoundPage';
+import PaymentSuccessPage from '../pages/PaymentSuccessPage';
+import PaymentCancelPage from '../pages/PaymentCancelPage';
 
 export default function AppRouter() {
   return (
@@ -28,6 +31,10 @@ export default function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/* Payment return pages (public, user redirected from Stripe) */}
+      <Route path="/payments/success" element={<PaymentSuccessPage />} />
+      <Route path="/payments/cancel" element={<PaymentCancelPage />} />
 
       {/* Redirect root to dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -47,6 +54,7 @@ export default function AppRouter() {
           <Route path="/discounts" element={<DiscountsPage />} />
           <Route path="/taxes" element={<TaxesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* Admin / internal_user only */}
           <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
