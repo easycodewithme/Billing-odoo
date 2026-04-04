@@ -132,7 +132,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
               <SelectContent>
                 {customers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.name} ({c.email})
+                    {c.fullName} ({c.email})
                   </SelectItem>
                 ))}
               </SelectContent>

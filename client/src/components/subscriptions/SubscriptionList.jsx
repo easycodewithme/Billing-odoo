@@ -57,12 +57,12 @@ export default function SubscriptionList({ refreshKey }) {
   const columns = [
     { key: 'subscriptionNo', label: 'Sub No' },
     {
-      key: 'customerId',
+      key: 'customer',
       label: 'Customer Name',
-      render: (val) => val?.name || '-',
+      render: (val) => val?.fullName || '-',
     },
     {
-      key: 'planId',
+      key: 'plan',
       label: 'Plan Name',
       render: (val) => val?.name || '-',
     },
