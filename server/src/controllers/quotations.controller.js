@@ -62,20 +62,20 @@ const getById = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const { name, recurringPlanId, templateLines, ...rest } = req.body;
+    const { name, recurringPlanId, templateLines, lines, ...rest } = req.body;
+    const lineData = templateLines || lines || [];
 
     const template = await prisma.quotationTemplate.create({
       data: {
         name,
         recurringPlanId: recurringPlanId || null,
-        ...rest,
-        templateLines: templateLines
+        validityDays: rest.validityDays || 30,
+        templateLines: lineData.length > 0
           ? {
-              create: templateLines.map((line) => ({
+              create: lineData.map((line) => ({
                 productId: line.productId,
                 quantity: line.quantity || 1,
                 unitPrice: line.unitPrice,
-                description: line.description || null,
               })),
             }
           : undefined,
@@ -108,31 +108,37 @@ const update = async (req, res) => {
       return error(res, 'Quotation template not found', 404);
     }
 
-    const { templateLines, ...templateData } = req.body;
+    const { templateLines, lines, ...templateData } = req.body;
+    const lineData = templateLines || lines;
+
+    // Only pass valid fields to update
+    const updateData = {};
+    if (templateData.name) updateData.name = templateData.name;
+    if (templateData.validityDays) updateData.validityDays = Number(templateData.validityDays);
+    if (templateData.recurringPlanId !== undefined) updateData.recurringPlanId = templateData.recurringPlanId || null;
 
     const template = await prisma.$transaction(async (tx) => {
       // Update template fields
       await tx.quotationTemplate.update({
         where: { id },
-        data: templateData,
+        data: updateData,
       });
 
-      // If templateLines provided, replace all lines
-      if (templateLines) {
+      // If lines provided, replace all lines
+      if (lineData) {
         // Delete existing lines
         await tx.quotationTemplateLine.deleteMany({
-          where: { quotationTemplateId: id },
+          where: { templateId: id },
         });
 
         // Create new lines
-        if (templateLines.length > 0) {
+        if (lineData.length > 0) {
           await tx.quotationTemplateLine.createMany({
-            data: templateLines.map((line) => ({
-              quotationTemplateId: id,
+            data: lineData.map((line) => ({
+              templateId: id,
               productId: line.productId,
               quantity: line.quantity || 1,
               unitPrice: line.unitPrice,
-              description: line.description || null,
             })),
           });
         }

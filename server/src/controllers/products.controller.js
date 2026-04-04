@@ -18,8 +18,11 @@ const getAll = async (req, res) => {
       where.name = { contains: search, mode: 'insensitive' };
     }
 
+    // By default, only show active products unless explicitly requested
     if (isActive !== undefined) {
       where.isActive = isActive === 'true';
+    } else if (!req.query.showInactive) {
+      where.isActive = true;
     }
 
     const [products, total] = await Promise.all([
