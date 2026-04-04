@@ -12,8 +12,16 @@ const generateSubscriptionNo = () => {
 };
 
 /**
- * Allowed status transitions map.
- * Key = current status, Value = array of allowed next statuses.
+ * Subscription status machine (hackathon / judge reference).
+ *
+ * Allowed edges (see ALLOWED_TRANSITIONS below):
+ * - draft → quotation
+ * - quotation → confirmed
+ * - confirmed → active
+ * - active → paused | closed (closed blocked if plan.closable is false; pause blocked if !plan.pausable)
+ * - paused → active | closed
+ *
+ * Plan flags enforced in transitionStatus(): pausable, closable.
  */
 const ALLOWED_TRANSITIONS = {
   draft: ['quotation'],

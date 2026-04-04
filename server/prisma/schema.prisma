@@ -1,3 +1,6 @@
+// Subscription Management System — PostgreSQL schema via Prisma.
+// Json? on AuditLog maps to PostgreSQL jsonb (Prisma Json type).
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,12 +10,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// App login identity: staff (admin, internal_user) or customer (portal_user). Example: role = portal_user after signup.
 enum Role {
   admin
   internal_user
   portal_user
 }
 
+/// How often the recurring plan price repeats. Example: monthly = bill every month.
 enum BillingPeriod {
   daily
   weekly
@@ -20,6 +25,7 @@ enum BillingPeriod {
   yearly
 }
 
+/// Subscription sales/lifecycle. Example: draft → quotation → confirmed → active.
 enum SubscriptionStatus {
   draft
   quotation
@@ -29,6 +35,7 @@ enum SubscriptionStatus {
   closed
 }
 
+/// Invoice billing state. Example: draft (generated) → confirmed (sent) → paid.
 enum InvoiceStatus {
   draft
   confirmed
@@ -55,12 +62,14 @@ enum DiscountType {
   percentage
 }
 
+/// Audit log verb; use lowercase in code (create, update, delete).
 enum AuditAction {
   create
   update
   delete
 }
 
+/// Staff and customers. FK targets: subscriptions.customerId, invoices.customerId, payments (via invoice), audit logs.
 model User {
   id               String    @id @default(uuid())
   fullName         String
@@ -82,6 +91,7 @@ model User {
   @@map("users")
 }
 
+/// Sellable item. Example: name "CRM Pro", salesPrice 99.99. Linked from order_lines, invoice_lines, template lines.
 model Product {
   id          String   @id @default(uuid())
   name        String
@@ -102,6 +112,7 @@ model Product {
   @@map("products")
 }
 
+/// Optional SKU-style row (e.g. Plan=Enterprise +50). FK productId → products.id (cascade delete).
 model ProductVariant {
   id         String  @id @default(uuid())
   productId  String
@@ -116,6 +127,7 @@ model ProductVariant {
   @@map("product_variants")
 }
 
+/// Billing cadence + base recurring price for a subscription. NOT “non-recurring”: one-time SKUs are still products; this table is “how often we bill this plan.” Example: Monthly Plan, price 99.99, billingPeriod monthly.
 model RecurringPlan {
   id            String        @id @default(uuid())
   name          String
@@ -138,10 +150,14 @@ model RecurringPlan {
   @@map("recurring_plans")
 }
 
+/// One customer subscription: who (customerId), which billing plan (planId), workflow status. Child rows: order_lines (what to charge), invoices (bills), status_logs.
+/// customerId → users.id: onDelete SetNull conflicts with required String in app terms—deleting a user can break NOT NULL in PostgreSQL; prefer not deleting users with live subscriptions.
 model Subscription {
   id              String             @id @default(uuid())
   subscriptionNo  String             @unique
+  /// FK → users.id (the paying customer; usually portal_user). Example UUID of John Doe.
   customerId      String
+  /// FK → recurring_plans.id. Example: “Monthly Plan” row.
   planId          String
   startDate       DateTime?
   expirationDate  DateTime?
@@ -161,14 +177,20 @@ model Subscription {
   @@map("subscriptions")
 }
 
+/// Line item ON a subscription (cart before invoice). FK subscriptionId → subscriptions.id (cascade: delete sub deletes lines). FK productId → products.id. Used when generating invoice_lines (copy/snapshot).
 model OrderLine {
   id             String  @id @default(uuid())
+  /// Parent subscription this line belongs to. Example: sub id for SUB-173...
   subscriptionId String
+  /// FK → products.id. Example: CRM Pro product.
   productId      String
+  /// FK → product_variants.id (optional). Example: Enterprise variant.
   variantId      String?
   quantity       Int     @default(1)
   unitPrice      Decimal
+  /// FK → taxes.id (optional). Example: GST 18%.
   taxId          String?
+  /// FK → discounts.id (optional). Example: Launch 10%.
   discountId     String?
   amount         Decimal
   createdAt      DateTime @default(now())
@@ -182,6 +204,7 @@ model OrderLine {
   @@map("order_lines")
 }
 
+/// Named preset of products + default plan (speeds creating subscriptions). FK recurringPlanId → recurring_plans.id.
 model QuotationTemplate {
   id              String @id @default(uuid())
   name            String
@@ -196,6 +219,7 @@ model QuotationTemplate {
   @@map("quotation_templates")
 }
 
+/// One row in a template “basket.” FK templateId → quotation_templates.id (cascade). FK productId → products.id.
 model QuotationTemplateLine {
   id         String  @id @default(uuid())
   templateId String
@@ -209,6 +233,7 @@ model QuotationTemplateLine {
   @@map("quotation_template_lines")
 }
 
+/// Bill for a subscription. FK subscriptionId → subscriptions.id, customerId → users.id (denormalized for queries).
 model Invoice {
   id               String        @id @default(uuid())
   invoiceNo        String        @unique
@@ -235,6 +260,7 @@ model Invoice {
   @@map("invoices")
 }
 
+/// Line on an invoice (snapshot from order lines at generation time). FK invoiceId → invoices.id (cascade).
 model InvoiceLine {
   id             String  @id @default(uuid())
   invoiceId      String
@@ -257,6 +283,7 @@ model InvoiceLine {
   @@map("invoice_lines")
 }
 
+/// Money applied to an invoice. FK invoiceId → invoices.id.
 model Payment {
   id                    String        @id @default(uuid())
   invoiceId             String
@@ -275,6 +302,7 @@ model Payment {
   @@map("payments")
 }
 
+/// Tax rate for lines. FK from order_lines.tax_id, invoice_lines.tax_id.
 model Tax {
   id          String  @id @default(uuid())
   name        String
@@ -291,6 +319,7 @@ model Tax {
   @@map("taxes")
 }
 
+/// Discount rule. FK from order_lines.discount_id; also M2M via discount_products / discount_subscriptions.
 model Discount {
   id           String       @id @default(uuid())
   name         String
@@ -313,6 +342,7 @@ model Discount {
   @@map("discounts")
 }
 
+/// M2M: which products a discount can apply to. Composite PK (discountId, productId).
 model DiscountProduct {
   discountId String
   productId  String
@@ -324,6 +354,7 @@ model DiscountProduct {
   @@map("discount_products")
 }
 
+/// M2M: discount scoped to specific subscriptions (eligibility metadata).
 model DiscountSubscription {
   discountId     String
   subscriptionId String
@@ -335,6 +366,7 @@ model DiscountSubscription {
   @@map("discount_subscriptions")
 }
 
+/// Append-only history when subscription.status changes. FK subscriptionId → subscriptions.id; changedById → users.id (nullable).
 model SubscriptionStatusLog {
   id             String   @id @default(uuid())
   subscriptionId String
@@ -350,6 +382,7 @@ model SubscriptionStatusLog {
   @@map("subscription_status_logs")
 }
 
+/// Generic change log. oldValues/newValues are JSON (PostgreSQL jsonb). Example: { "status": "draft" }.
 model AuditLog {
   id        String      @id @default(uuid())
   tableName String

@@ -2,6 +2,15 @@ const prisma = require('../utils/prisma');
 const { logAction } = require('./audit.service');
 
 /**
+ * Invoice status rules (hackathon / judge reference).
+ *
+ * - draft: initial after generateInvoice; only draft may be confirmed.
+ * - confirmed: issuedAt + dueDate set on confirm (dueDate = now + 30 days in confirmInvoice).
+ * - paid: set automatically when sum(completed payments) >= netAmount (updatePaymentTotals).
+ * - cancelled: cancelInvoice only if no payments exist; cannot pay cancelled invoices.
+ */
+
+/**
  * Generate a unique invoice number.
  * Format: INV-<timestamp><random 4 digits>
  */
