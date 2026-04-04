@@ -79,4 +79,7 @@ router.delete(
   subscriptionsController.removeOrderLine
 );
 
+// POST /:id/renew - renew a closed subscription (admin, internal_user)
+router.post('/:id/renew', authenticate, authorize('admin', 'internal_user'), subscriptionsController.renew);
+
 module.exports = router;

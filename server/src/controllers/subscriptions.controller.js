@@ -15,6 +15,11 @@ const getAll = async (req, res) => {
 
     const where = {};
 
+    // Portal users can only see their own subscriptions
+    if (req.user.role === 'portal_user') {
+      where.customerId = req.user.id;
+    }
+
     if (status) {
       where.status = status;
     }
@@ -88,6 +93,10 @@ const getById = async (req, res) => {
       return error(res, 'Subscription not found', 404);
     }
 
+    if (req.user.role === 'portal_user' && subscription.customerId !== req.user.id) {
+      return error(res, 'Not authorized', 403);
+    }
+
     return success(res, subscription);
   } catch (err) {
     console.error('Get subscription by ID error:', err);
@@ -115,7 +124,10 @@ const create = async (req, res) => {
     return success(res, subscription, 'Subscription created successfully', 201);
   } catch (err) {
     console.error('Create subscription error:', err);
-    return error(res, err.message || 'Failed to create subscription');
+    const statusCode = err.message.includes('not found') ? 404
+      : err.message.includes('date') || err.message.includes('required') ? 400
+      : 500;
+    return error(res, err.message || 'Failed to create subscription', statusCode);
   }
 };
 
@@ -135,6 +147,18 @@ const update = async (req, res) => {
 
     if (!['draft', 'quotation'].includes(existing.status)) {
       return error(res, 'Subscription can only be updated in draft or quotation status', 400);
+    }
+
+    // Convert date strings from frontend to proper Date objects
+    if (req.body.startDate && typeof req.body.startDate === 'string') {
+      req.body.startDate = new Date(req.body.startDate);
+    }
+    if (req.body.expirationDate && typeof req.body.expirationDate === 'string') {
+      req.body.expirationDate = new Date(req.body.expirationDate);
+    }
+
+    if (req.body.startDate && req.body.expirationDate && req.body.expirationDate <= req.body.startDate) {
+      return error(res, 'Expiration date must be after start date', 400);
     }
 
     const updated = await prisma.subscription.update({
@@ -204,7 +228,7 @@ const applyTemplate = async (req, res) => {
     await logAction(
       'Subscription',
       id,
-      'APPLY_TEMPLATE',
+      'update',
       null,
       { templateId },
       req.user.id
@@ -355,6 +379,18 @@ const removeOrderLine = async (req, res) => {
   }
 };
 
+const renew = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await subscriptionService.renewSubscription(id, req.user.id);
+    return success(res, updated, 'Subscription renewed successfully');
+  } catch (err) {
+    console.error('Renew subscription error:', err);
+    const statusCode = err.message.includes('not found') ? 404 : 400;
+    return error(res, err.message, statusCode);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -365,4 +401,5 @@ module.exports = {
   addOrderLine,
   updateOrderLine,
   removeOrderLine,
+  renew,
 };

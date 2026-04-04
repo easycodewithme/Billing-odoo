@@ -31,6 +31,18 @@ const ALLOWED_TRANSITIONS = {
 const createSubscription = async (data) => {
   const subscriptionNo = generateSubscriptionNo();
 
+  // Convert date strings from frontend to proper Date objects
+  if (data.startDate && typeof data.startDate === 'string') {
+    data.startDate = new Date(data.startDate);
+  }
+  if (data.expirationDate && typeof data.expirationDate === 'string') {
+    data.expirationDate = new Date(data.expirationDate);
+  }
+
+  if (data.startDate && data.expirationDate && data.expirationDate <= data.startDate) {
+    throw new Error('Expiration date must be after start date');
+  }
+
   const subscription = await prisma.subscription.create({
     data: {
       ...data,
@@ -149,12 +161,9 @@ const applyTemplate = async (subscriptionId, templateId) => {
   const orderLineData = template.templateLines.map((line) => ({
     subscriptionId,
     productId: line.productId,
-    variantId: line.variantId || null,
     quantity: line.quantity,
     unitPrice: line.unitPrice,
     amount: line.quantity * line.unitPrice,
-    taxId: line.taxId || null,
-    discountId: line.discountId || null,
   }));
 
   await prisma.orderLine.createMany({
@@ -179,8 +188,53 @@ const applyTemplate = async (subscriptionId, templateId) => {
   return updatedSubscription;
 };
 
+/**
+ * Renew a closed or expired subscription.
+ */
+const renewSubscription = async (subscriptionId, userId) => {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true },
+  });
+
+  if (!subscription) throw new Error('Subscription not found');
+  if (subscription.status !== 'closed') throw new Error('Only closed subscriptions can be renewed');
+  if (!subscription.plan.renewable) throw new Error('This plan does not support renewal');
+
+  const newStart = new Date();
+  const newExpiration = new Date();
+  const periodDays = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
+  newExpiration.setDate(newExpiration.getDate() + (periodDays[subscription.plan.billingPeriod] || 30));
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const renewed = await tx.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        status: 'active',
+        startDate: newStart,
+        expirationDate: newExpiration,
+      },
+    });
+
+    await tx.subscriptionStatusLog.create({
+      data: {
+        subscriptionId,
+        fromStatus: 'closed',
+        toStatus: 'active',
+        changedById: userId,
+        reason: 'Subscription renewed',
+      },
+    });
+
+    return renewed;
+  });
+
+  return updated;
+};
+
 module.exports = {
   createSubscription,
   transitionStatus,
   applyTemplate,
+  renewSubscription,
 };
