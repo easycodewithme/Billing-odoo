@@ -23,6 +23,13 @@ import ProfilePage from '../pages/ProfilePage';
 import NotFoundPage from '../pages/NotFoundPage';
 import PaymentSuccessPage from '../pages/PaymentSuccessPage';
 import PaymentCancelPage from '../pages/PaymentCancelPage';
+import ShopPage from '../pages/shop/ShopPage';
+import ShopProductDetailPage from '../pages/shop/ProductDetailPage';
+import CartPage from '../pages/shop/CartPage';
+import CheckoutPage from '../pages/shop/CheckoutPage';
+import OrderConfirmedPage from '../pages/shop/OrderConfirmedPage';
+import MyOrdersPage from '../pages/shop/MyOrdersPage';
+import OrderDetailPage from '../pages/shop/OrderDetailPage';
 
 export default function AppRouter() {
   return (
@@ -61,6 +68,17 @@ export default function AppRouter() {
             <Route path="/users" element={<UsersPage />} />
           </Route>
         </Route>
+      </Route>
+
+      {/* Shop routes (protected, no admin sidebar) */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/shop" element={<ShopPage />} />
+        <Route path="/shop/:id" element={<ShopProductDetailPage />} />
+        <Route path="/shop/cart" element={<CartPage />} />
+        <Route path="/shop/checkout" element={<CheckoutPage />} />
+        <Route path="/shop/order-confirmed" element={<OrderConfirmedPage />} />
+        <Route path="/shop/orders" element={<MyOrdersPage />} />
+        <Route path="/shop/orders/:id" element={<OrderDetailPage />} />
       </Route>
 
       {/* 404 */}

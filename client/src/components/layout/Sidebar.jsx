@@ -14,6 +14,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +33,7 @@ const navSections = [
     label: 'Main',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/shop', label: 'Shop', icon: ShoppingBag, roles: ['portal_user'] },
     ],
   },
   {
@@ -45,6 +47,7 @@ const navSections = [
     label: 'Sales',
     items: [
       { to: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
+      { to: '/shop/orders', label: 'My Orders', icon: Package, roles: ['portal_user'] },
       { to: '/quotation-templates', label: 'Quotation Templates', icon: FileText, roles: ['admin', 'internal_user'] },
     ],
   },
