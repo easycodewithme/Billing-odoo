@@ -234,6 +234,11 @@ const applyDiscount = async (req, res) => {
       return error(res, `Minimum purchase of $${discount.minPurchase} required`, 400);
     }
 
+    const totalQuantity = cart.items.reduce((sum, i) => sum + i.quantity, 0);
+    if (discount.minQuantity && totalQuantity < discount.minQuantity) {
+      return error(res, `Minimum quantity of ${discount.minQuantity} items required`, 400);
+    }
+
     let discountAmount = 0;
     if (discount.type === 'percentage') {
       discountAmount = subtotal * (Number(discount.value) / 100);
@@ -403,6 +408,100 @@ async function recalculateCart(orderId) {
   });
 }
 
+// GET /shop/plans - List available recurring plans
+const getPlans = async (req, res) => {
+  try {
+    const plans = await prisma.recurringPlan.findMany({
+      where: { isActive: true },
+      orderBy: { price: 'asc' },
+    });
+    return success(res, plans);
+  } catch (err) {
+    return error(res, 'Failed to fetch plans');
+  }
+};
+
+// POST /shop/subscribe - Portal user self-subscribes
+const subscribe = async (req, res) => {
+  try {
+    const { planId, products, paymentTerms } = req.body;
+
+    if (!planId) return error(res, 'Plan is required', 400);
+
+    const plan = await prisma.recurringPlan.findUnique({ where: { id: planId } });
+    if (!plan || !plan.isActive) return error(res, 'Plan not found', 404);
+
+    // Generate subscription number
+    const subscriptionNo = 'SUB-' + Date.now() + Math.floor(1000 + Math.random() * 9000);
+
+    // Calculate expiration based on billing period
+    const startDate = new Date();
+    const expirationDate = new Date();
+    const periodDays = { daily: 1, weekly: 7, monthly: 30, yearly: 365 };
+    expirationDate.setDate(expirationDate.getDate() + (periodDays[plan.billingPeriod] || 30));
+
+    // Build order lines from selected products
+    const orderLineData = [];
+    if (products && products.length > 0) {
+      for (const item of products) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          include: { variants: true },
+        });
+        if (!product) continue;
+
+        let unitPrice = Number(product.salesPrice);
+        if (item.variantId) {
+          const variant = product.variants.find(v => v.id === item.variantId);
+          if (variant) unitPrice += Number(variant.extraPrice);
+        }
+        const qty = item.quantity || 1;
+
+        orderLineData.push({
+          productId: item.productId,
+          variantId: item.variantId || null,
+          quantity: qty,
+          unitPrice,
+          amount: qty * unitPrice,
+        });
+      }
+    }
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        subscriptionNo,
+        customerId: req.user.id,
+        planId,
+        startDate,
+        expirationDate,
+        paymentTerms: paymentTerms || 'Due on Receipt',
+        status: 'confirmed',
+        orderLines: orderLineData.length > 0 ? { create: orderLineData } : undefined,
+      },
+      include: {
+        plan: { select: { name: true, billingPeriod: true, price: true } },
+        orderLines: { include: { product: true, variant: true } },
+      },
+    });
+
+    // Log status
+    await prisma.subscriptionStatusLog.create({
+      data: {
+        subscriptionId: subscription.id,
+        fromStatus: 'draft',
+        toStatus: 'confirmed',
+        changedById: req.user.id,
+        reason: 'Self-service subscription from portal',
+      },
+    });
+
+    return success(res, subscription, 'Subscription created successfully', 201);
+  } catch (err) {
+    console.error('Subscribe error:', err);
+    return error(res, 'Failed to create subscription');
+  }
+};
+
 module.exports = {
   getProducts,
   getProductDetail,
@@ -415,4 +514,6 @@ module.exports = {
   getOrders,
   getOrderDetail,
   stripeCheckout,
+  getPlans,
+  subscribe,
 };

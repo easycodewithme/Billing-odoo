@@ -71,14 +71,14 @@ export default function InvoiceList({ refreshKey }) {
   const columns = [
     { key: 'invoiceNo', label: 'Invoice No' },
     {
-      key: 'customerId',
+      key: 'customer',
       label: 'Customer',
-      render: (val) => val?.name || '-',
+      render: (val, row) => row.customer?.fullName || val?.fullName || '-',
     },
     {
-      key: 'subscriptionId',
+      key: 'subscription',
       label: 'Subscription No',
-      render: (val) => val?.subscriptionNo || '-',
+      render: (val, row) => row.subscription?.subscriptionNo || val?.subscriptionNo || '-',
     },
     {
       key: 'issueDate',

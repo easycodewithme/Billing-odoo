@@ -44,6 +44,7 @@ export default function ShopNav() {
 
   const navLinks = [
     { to: '/shop', label: 'Shop', icon: Package },
+    { to: '/shop/plans', label: 'Plans', icon: CreditCard },
     { to: '/shop/orders', label: 'My Orders', icon: Receipt },
     { to: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { to: '/invoices', label: 'Invoices', icon: Receipt },

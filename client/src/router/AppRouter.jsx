@@ -31,6 +31,7 @@ import OrderConfirmedPage from '../pages/shop/OrderConfirmedPage';
 import MyOrdersPage from '../pages/shop/MyOrdersPage';
 import OrderDetailPage from '../pages/shop/OrderDetailPage';
 import ShopLayout from '../components/shop/ShopLayout';
+import ShopPlansPage from '../pages/shop/PlansPage';
 
 export default function AppRouter() {
   return (
@@ -75,12 +76,13 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<ShopLayout />}>
           <Route path="/shop" element={<ShopPage />} />
-          <Route path="/shop/:id" element={<ShopProductDetailPage />} />
+          <Route path="/shop/plans" element={<ShopPlansPage />} />
           <Route path="/shop/cart" element={<CartPage />} />
           <Route path="/shop/checkout" element={<CheckoutPage />} />
           <Route path="/shop/order-confirmed" element={<OrderConfirmedPage />} />
           <Route path="/shop/orders" element={<MyOrdersPage />} />
           <Route path="/shop/orders/:id" element={<OrderDetailPage />} />
+          <Route path="/shop/:id" element={<ShopProductDetailPage />} />
         </Route>
       </Route>
 

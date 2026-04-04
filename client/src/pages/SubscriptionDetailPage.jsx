@@ -119,7 +119,7 @@ export default function SubscriptionDetailPage() {
       </button>
       <PageHeader
         title={`Subscription ${subscription.subscriptionNo || ''}`}
-        description={subscription.customerId?.name || ''}
+        description={subscription.customer?.fullName || ''}
       >
         <Button variant="outline" onClick={() => navigate('/subscriptions')}>
           <ArrowLeft className="size-4" />

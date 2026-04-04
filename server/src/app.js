@@ -13,6 +13,9 @@ const app = express();
 // Security & logging
 app.use(helmet());
 
+// Stripe webhook route needs raw body - must be before express.json() and rate limiters
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+
 // Rate limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -39,9 +42,6 @@ app.use(cors({
   origin: config.CLIENT_URL,
   credentials: true,
 }));
-
-// Stripe webhook route needs raw body - must be before express.json()
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 
 // Body parsing
 app.use(express.json());

@@ -57,8 +57,8 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
 
   if (!subscription) return null;
 
-  const plan = subscription.planId || {};
-  const customer = subscription.customerId || {};
+  const plan = subscription.plan || {};
+  const customer = subscription.customer || {};
 
   const availableTransitions = (STATUS_TRANSITIONS[subscription.status] || []).filter(
     (t) => {

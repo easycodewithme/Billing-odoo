@@ -149,21 +149,29 @@ const update = async (req, res) => {
       return error(res, 'Subscription can only be updated in draft or quotation status', 400);
     }
 
-    // Convert date strings from frontend to proper Date objects
-    if (req.body.startDate && typeof req.body.startDate === 'string') {
-      req.body.startDate = new Date(req.body.startDate);
+    // Only allow safe fields to be updated
+    const allowedFields = ['startDate', 'expirationDate', 'paymentTerms', 'notes'];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
     }
-    if (req.body.expirationDate && typeof req.body.expirationDate === 'string') {
-      req.body.expirationDate = new Date(req.body.expirationDate);
+    // Convert dates
+    if (updateData.startDate && typeof updateData.startDate === 'string') {
+      updateData.startDate = new Date(updateData.startDate);
+    }
+    if (updateData.expirationDate && typeof updateData.expirationDate === 'string') {
+      updateData.expirationDate = new Date(updateData.expirationDate);
     }
 
-    if (req.body.startDate && req.body.expirationDate && req.body.expirationDate <= req.body.startDate) {
+    if (updateData.startDate && updateData.expirationDate && updateData.expirationDate <= updateData.startDate) {
       return error(res, 'Expiration date must be after start date', 400);
     }
 
     const updated = await prisma.subscription.update({
       where: { id },
-      data: req.body,
+      data: updateData,
       include: {
         customer: { select: { fullName: true, email: true } },
         plan: { select: { name: true, billingPeriod: true } },

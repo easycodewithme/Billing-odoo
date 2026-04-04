@@ -11,3 +11,5 @@ export const shopCheckout = (data) => api.post('/shop/checkout', data);
 export const shopStripeCheckout = () => api.post('/shop/checkout/stripe');
 export const getMyOrders = (params) => api.get('/shop/orders', { params });
 export const getMyOrder = (id) => api.get(`/shop/orders/${id}`);
+export const getShopPlans = () => api.get('/shop/plans');
+export const selfSubscribe = (data) => api.post('/shop/subscribe', data);

@@ -34,6 +34,7 @@ const navSections = [
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/shop', label: 'Shop', icon: ShoppingBag, roles: ['portal_user'] },
+      { to: '/shop/plans', label: 'Plans & Pricing', icon: CreditCard, roles: ['portal_user'] },
     ],
   },
   {

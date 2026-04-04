@@ -106,9 +106,17 @@ const update = async (req, res) => {
       return error(res, 'Product not found', 404);
     }
 
+    const allowedFields = ['name', 'productType', 'salesPrice', 'costPrice', 'description', 'image'];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
-      data: req.body,
+      data: updateData,
     });
 
     await logAction('Product', product.id, 'update', existing, product, req.user.id);
