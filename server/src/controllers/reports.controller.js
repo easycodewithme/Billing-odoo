@@ -17,7 +17,7 @@ const dashboardStats = async (req, res) => {
     ] = await Promise.all([
       prisma.subscription.count(),
       prisma.subscription.count({ where: { status: 'active' } }),
-      prisma.customer.count(),
+      prisma.user.count({ where: { role: 'portal_user' } }),
       prisma.invoice.aggregate({
         where: { status: 'paid' },
         _sum: { netAmount: true },
@@ -39,7 +39,7 @@ const dashboardStats = async (req, res) => {
 
     // Calculate MRR from active subscriptions
     const mrr = mrrResult.reduce((total, sub) => {
-      const price = sub.plan?.price || 0;
+      const price = Number(sub.plan?.price || 0);
       const period = sub.plan?.billingPeriod;
 
       switch (period) {

@@ -209,7 +209,9 @@ const detachProduct = async (req, res) => {
       return error(res, 'Product is not attached to this discount', 404);
     }
 
-    await prisma.discountProduct.delete({ where: { id: link.id } });
+    await prisma.discountProduct.delete({
+      where: { discountId_productId: { discountId: id, productId } },
+    });
 
     return success(res, null, 'Product detached from discount');
   } catch (err) {
@@ -277,7 +279,9 @@ const detachSubscription = async (req, res) => {
       return error(res, 'Subscription is not attached to this discount', 404);
     }
 
-    await prisma.discountSubscription.delete({ where: { id: link.id } });
+    await prisma.discountSubscription.delete({
+      where: { discountId_subscriptionId: { discountId: id, subscriptionId } },
+    });
 
     return success(res, null, 'Subscription detached from discount');
   } catch (err) {

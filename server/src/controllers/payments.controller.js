@@ -38,7 +38,7 @@ const getAll = async (req, res) => {
             select: {
               invoiceNo: true,
               status: true,
-              customer: { select: { name: true } },
+              customer: { select: { fullName: true } },
             },
           },
         },
