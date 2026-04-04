@@ -37,15 +37,15 @@ const navSections = [
   {
     label: 'Catalog',
     items: [
-      { to: '/products', label: 'Products', icon: Package },
-      { to: '/plans', label: 'Recurring Plans', icon: RefreshCw },
+      { to: '/products', label: 'Products', icon: Package, roles: ['admin', 'internal_user'] },
+      { to: '/plans', label: 'Recurring Plans', icon: RefreshCw, roles: ['admin', 'internal_user'] },
     ],
   },
   {
     label: 'Sales',
     items: [
       { to: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
-      { to: '/quotation-templates', label: 'Quotation Templates', icon: FileText },
+      { to: '/quotation-templates', label: 'Quotation Templates', icon: FileText, roles: ['admin', 'internal_user'] },
     ],
   },
   {

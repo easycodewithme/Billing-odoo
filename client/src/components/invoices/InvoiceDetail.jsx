@@ -23,8 +23,11 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import PaymentForm from '@/components/payments/PaymentForm';
 import { INVOICE_STATUS, PAYMENT_METHOD_LABELS } from '@/lib/constants';
 import { CheckCircle, XCircle, CreditCard, Download, Send } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function InvoiceDetail({ invoice, onRefresh }) {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -292,30 +295,30 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {canConfirm && (
+            {isStaff && canConfirm && (
               <Button onClick={() => setConfirmOpen(true)} disabled={processing}>
                 <CheckCircle className="size-4" />
                 Confirm
               </Button>
             )}
+            {canRecordPayment && isStaff && (
+              <Button
+                variant="secondary"
+                onClick={() => setPaymentOpen(true)}
+              >
+                <CreditCard className="size-4" />
+                Record Payment
+              </Button>
+            )}
             {canRecordPayment && (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => setPaymentOpen(true)}
-                >
-                  <CreditCard className="size-4" />
-                  Record Payment
-                </Button>
-                <Button
-                  onClick={handleStripeCheckout}
-                  disabled={processing}
-                  className="bg-[#635BFF] hover:bg-[#5851db] text-white"
-                >
-                  <CreditCard className="size-4" />
-                  Pay with Stripe
-                </Button>
-              </>
+              <Button
+                onClick={handleStripeCheckout}
+                disabled={processing}
+                className="bg-[#635BFF] hover:bg-[#5851db] text-white"
+              >
+                <CreditCard className="size-4" />
+                Pay with Stripe
+              </Button>
             )}
             <Button
               variant="outline"
@@ -325,7 +328,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
               <Download className="size-4" />
               Download PDF
             </Button>
-            {invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
+            {isStaff && invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
               <Button
                 variant="outline"
                 onClick={handleSendInvoice}
@@ -335,7 +338,7 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
                 Send Email
               </Button>
             )}
-            {canCancel && (
+            {isStaff && canCancel && (
               <Button
                 variant="destructive"
                 onClick={() => setCancelOpen(true)}
