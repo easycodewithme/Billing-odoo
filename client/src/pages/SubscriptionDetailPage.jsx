@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSubscription } from '@/api/subscriptions.api';
 import { getInvoices, generateInvoice } from '@/api/invoices.api';
@@ -105,12 +105,18 @@ export default function SubscriptionDetailPage() {
     {
       label: 'View',
       icon: FileText,
-      onClick: () => navigate(`/invoices/${row._id}`),
+      onClick: () => navigate(`/invoices/${row.id}`),
     },
   ];
 
   return (
     <div className="space-y-6 p-6">
+      <button
+        onClick={() => navigate('/subscriptions')}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ChevronLeft className="size-4" /> Back to Subscriptions
+      </button>
       <PageHeader
         title={`Subscription ${subscription.subscriptionNo || ''}`}
         description={subscription.customerId?.name || ''}
@@ -138,7 +144,7 @@ export default function SubscriptionDetailPage() {
 
         <TabsContent value="orderlines" className="mt-6">
           <OrderLineTable
-            subscriptionId={subscription._id}
+            subscriptionId={subscription.id}
             orderLines={subscription.orderLines || []}
             editable={isEditable}
             onRefresh={fetchSubscription}

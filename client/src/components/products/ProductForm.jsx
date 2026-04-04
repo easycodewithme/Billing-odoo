@@ -63,7 +63,7 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
         costPrice: Number(form.costPrice),
       };
       if (isEdit) {
-        await updateProduct(product._id, payload);
+        await updateProduct(product.id, payload);
         toast.success('Product updated successfully');
       } else {
         await createProduct(payload);

@@ -34,7 +34,7 @@ export default function StatusTimeline({ logs = [] }) {
           : '-';
 
         return (
-          <div key={log._id || index} className="relative pb-8 last:pb-0">
+          <div key={log.id || index} className="relative pb-8 last:pb-0">
             {/* Dot */}
             <div
               className={cn(

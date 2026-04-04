@@ -40,7 +40,7 @@ export default function InvoiceList({ refreshKey }) {
       }
       const res = await getInvoices(params);
       setData(res.data.data || []);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch invoices');
     } finally {
@@ -119,7 +119,7 @@ export default function InvoiceList({ refreshKey }) {
     {
       label: 'View',
       icon: Eye,
-      onClick: () => navigate(`/invoices/${row._id}`),
+      onClick: () => navigate(`/invoices/${row.id}`),
     },
   ];
 

@@ -24,7 +24,7 @@ export default function UserList({ onEdit, refreshKey }) {
       if (roleFilter !== 'all') params.role = roleFilter;
       const res = await getUsers(params);
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch users');
     } finally {
@@ -41,10 +41,10 @@ export default function UserList({ onEdit, refreshKey }) {
     const { user, action } = confirmAction;
     try {
       if (action === 'activate') {
-        await activateUser(user._id);
+        await activateUser(user.id);
         toast.success('User activated successfully');
       } else {
-        await deactivateUser(user._id);
+        await deactivateUser(user.id);
         toast.success('User deactivated successfully');
       }
       fetchData();

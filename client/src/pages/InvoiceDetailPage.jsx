@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInvoice } from '@/api/invoices.api';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,12 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <button
+        onClick={() => navigate('/invoices')}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ChevronLeft className="size-4" /> Back to Invoices
+      </button>
       <PageHeader
         title={`Invoice ${invoice.invoiceNo || ''}`}
         description={invoice.customerId?.name || ''}

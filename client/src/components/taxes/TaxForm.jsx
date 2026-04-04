@@ -53,7 +53,7 @@ export default function TaxForm({ open, onOpenChange, tax, onSuccess }) {
         rate: Number(form.rate),
       };
       if (isEdit) {
-        await updateTax(tax._id, payload);
+        await updateTax(tax.id, payload);
         toast.success('Tax updated successfully');
       } else {
         await createTax(payload);

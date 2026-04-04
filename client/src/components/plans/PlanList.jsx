@@ -29,7 +29,7 @@ export default function PlanList({ onEdit, refreshKey }) {
       if (billingFilter) params.billingPeriod = billingFilter;
       const res = await getPlans(params);
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch plans');
     } finally {
@@ -44,7 +44,7 @@ export default function PlanList({ onEdit, refreshKey }) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deletePlan(deleteTarget._id);
+      await deletePlan(deleteTarget.id);
       toast.success('Plan deleted successfully');
       fetchData();
     } catch {

@@ -65,7 +65,7 @@ export default function VariantManager({ productId, variants = [], onRefresh }) 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteVariant(productId, deleteTarget._id);
+      await deleteVariant(productId, deleteTarget.id);
       toast.success('Variant deleted');
       onRefresh?.();
     } catch {
@@ -74,7 +74,7 @@ export default function VariantManager({ productId, variants = [], onRefresh }) 
   };
 
   const startEdit = (variant) => {
-    setEditId(variant._id);
+    setEditId(variant.id);
     setEditRow({
       attribute: variant.attribute || '',
       value: variant.value || '',
@@ -106,8 +106,8 @@ export default function VariantManager({ productId, variants = [], onRefresh }) 
           </TableHeader>
           <TableBody>
             {variants.map((variant) =>
-              editId === variant._id ? (
-                <TableRow key={variant._id}>
+              editId === variant.id ? (
+                <TableRow key={variant.id}>
                   <TableCell>
                     <Input
                       value={editRow.attribute}
@@ -144,7 +144,7 @@ export default function VariantManager({ productId, variants = [], onRefresh }) 
                   </TableCell>
                 </TableRow>
               ) : (
-                <TableRow key={variant._id}>
+                <TableRow key={variant.id}>
                   <TableCell>{variant.attribute}</TableCell>
                   <TableCell>{variant.value}</TableCell>
                   <TableCell>${Number(variant.extraPrice).toFixed(2)}</TableCell>

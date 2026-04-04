@@ -52,7 +52,7 @@ export default function UserForm({ open, onOpenChange, user, onSuccess }) {
           fullName: form.fullName,
           phone: form.phone,
         };
-        await updateUser(user._id, payload);
+        await updateUser(user.id, payload);
         toast.success('User updated successfully');
       } else {
         const payload = {

@@ -72,7 +72,7 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
     if (!statusDialog) return;
     setSubmitting(true);
     try {
-      await updateSubscriptionStatus(subscription._id, {
+      await updateSubscriptionStatus(subscription.id, {
         status: statusDialog.target,
         reason: reason || undefined,
       });

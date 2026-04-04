@@ -19,7 +19,7 @@ export default function DiscountList({ onEdit, refreshKey }) {
     try {
       const res = await getDiscounts({ page: pagination.page, limit: pagination.limit, search });
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch discounts');
     } finally {
@@ -34,7 +34,7 @@ export default function DiscountList({ onEdit, refreshKey }) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteDiscount(deleteTarget._id);
+      await deleteDiscount(deleteTarget.id);
       toast.success('Discount deleted successfully');
       fetchData();
     } catch {

@@ -37,7 +37,7 @@ export default function SubscriptionList({ refreshKey }) {
       }
       const res = await getSubscriptions(params);
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch subscriptions');
     } finally {
@@ -88,14 +88,14 @@ export default function SubscriptionList({ refreshKey }) {
       {
         label: 'View',
         icon: Eye,
-        onClick: () => navigate(`/subscriptions/${row._id}`),
+        onClick: () => navigate(`/subscriptions/${row.id}`),
       },
     ];
     if (row.status === SUBSCRIPTION_STATUS.DRAFT || row.status === 'quotation') {
       items.push({
         label: 'Edit',
         icon: Pencil,
-        onClick: () => navigate(`/subscriptions/${row._id}`),
+        onClick: () => navigate(`/subscriptions/${row.id}`),
       });
     }
     return items;

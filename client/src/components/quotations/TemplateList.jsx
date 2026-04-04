@@ -17,7 +17,7 @@ export default function TemplateList({ onEdit, refreshKey }) {
     try {
       const res = await getTemplates({ page: pagination.page, limit: pagination.limit, search });
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch templates');
     } finally {
@@ -32,7 +32,7 @@ export default function TemplateList({ onEdit, refreshKey }) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteTemplate(deleteTarget._id);
+      await deleteTemplate(deleteTarget.id);
       toast.success('Template deleted successfully');
       fetchData();
     } catch {

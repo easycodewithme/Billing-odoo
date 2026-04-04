@@ -56,9 +56,9 @@ export default function TemplateForm({ open, onOpenChange, template, onSuccess }
       setForm({
         name: template.name || '',
         validityDays: template.validityDays ?? '',
-        recurringPlanId: template.recurringPlan?._id || template.recurringPlanId || '',
+        recurringPlanId: template.recurringPlan?.id || template.recurringPlanId || '',
         lines: (template.lines || []).map((line) => ({
-          productId: line.product?._id || line.productId || '',
+          productId: line.product?.id || line.productId || '',
           quantity: line.quantity ?? 1,
           unitPrice: line.unitPrice ?? '',
         })),
@@ -106,7 +106,7 @@ export default function TemplateForm({ open, onOpenChange, template, onSuccess }
         })),
       };
       if (isEdit) {
-        await updateTemplate(template._id, payload);
+        await updateTemplate(template.id, payload);
         toast.success('Template updated successfully');
       } else {
         await createTemplate(payload);
@@ -164,7 +164,7 @@ export default function TemplateForm({ open, onOpenChange, template, onSuccess }
                 <SelectContent>
                   <SelectItem value="">None</SelectItem>
                   {plans.map((plan) => (
-                    <SelectItem key={plan._id} value={plan._id}>
+                    <SelectItem key={plan.id} value={plan.id}>
                       {plan.name}
                     </SelectItem>
                   ))}
@@ -198,7 +198,7 @@ export default function TemplateForm({ open, onOpenChange, template, onSuccess }
                     </SelectTrigger>
                     <SelectContent>
                       {products.map((product) => (
-                        <SelectItem key={product._id} value={product._id}>
+                        <SelectItem key={product.id} value={product.id}>
                           {product.name}
                         </SelectItem>
                       ))}

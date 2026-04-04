@@ -66,6 +66,11 @@ export default function PlanForm({ open, onOpenChange, plan, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    if (form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate)) {
+      toast.error('End date must be after start date');
+      setSubmitting(false);
+      return;
+    }
     try {
       const payload = {
         ...form,
@@ -75,7 +80,7 @@ export default function PlanForm({ open, onOpenChange, plan, onSuccess }) {
         endDate: form.endDate || undefined,
       };
       if (isEdit) {
-        await updatePlan(plan._id, payload);
+        await updatePlan(plan.id, payload);
         toast.success('Plan updated successfully');
       } else {
         await createPlan(payload);

@@ -35,13 +35,25 @@ export default function DashboardPage() {
         getOverdueInvoices(),
       ]);
       setStats(statsRes.data.data || statsRes.data);
-      setRevenueData(revenueRes.data.data?.monthly || revenueRes.data.monthly || []);
-      setSubscriptionData(
-        subRes.data.data?.byStatus || subRes.data.byStatus || []
-      );
-      setOverdueInvoices(
-        overdueRes.data.data || overdueRes.data || []
-      );
+
+      // Revenue: backend returns array directly in data
+      const revData = revenueRes.data.data || revenueRes.data || [];
+      setRevenueData(Array.isArray(revData) ? revData : []);
+
+      // Subscriptions: backend returns { byStatus: { draft: 1, active: 2 }, trend: [...] }
+      // Transform byStatus object into array for PieChart: [{ status: 'draft', count: 1 }, ...]
+      const subData = subRes.data.data || subRes.data || {};
+      const byStatus = subData.byStatus || {};
+      if (Array.isArray(byStatus)) {
+        setSubscriptionData(byStatus);
+      } else {
+        setSubscriptionData(
+          Object.entries(byStatus).map(([status, count]) => ({ status, count }))
+        );
+      }
+
+      const overdueData = overdueRes.data.data || overdueRes.data || [];
+      setOverdueInvoices(Array.isArray(overdueData) ? overdueData : []);
     } catch {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -56,7 +68,7 @@ export default function DashboardPage() {
   const activeSubscriptions = stats?.activeSubscriptions ?? 0;
   const mrr = stats?.mrr ?? 0;
   const totalRevenue = stats?.totalRevenue ?? 0;
-  const overdueCount = stats?.overdueInvoices ?? overdueInvoices.length;
+  const overdueCount = stats?.overdueInvoicesCount ?? stats?.overdueInvoices ?? overdueInvoices.length;
 
   return (
     <div className="space-y-6 p-6">

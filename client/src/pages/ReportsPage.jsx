@@ -37,6 +37,21 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import { Download } from 'lucide-react';
+
+function downloadCSV(data, filename) {
+  if (!data || data.length === 0) return;
+  const headers = Object.keys(data[0]);
+  const rows = data.map((row) => headers.map((h) => JSON.stringify(row[h] ?? '')).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const STATUS_COLORS = {
   draft: '#9ca3af',
@@ -240,6 +255,11 @@ export default function ReportsPage() {
                   )}
                 </CardContent>
               </Card>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => downloadCSV(revenueData.monthly, 'revenue-report')}>
+                  <Download className="size-4 mr-1" /> Export CSV
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Subscriptions Tab */}
@@ -318,6 +338,11 @@ export default function ReportsPage() {
                   </CardContent>
                 </Card>
               </div>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => downloadCSV(subscriptionData.byStatus, 'subscriptions-report')}>
+                  <Download className="size-4 mr-1" /> Export CSV
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Payments Tab */}
@@ -387,6 +412,11 @@ export default function ReportsPage() {
                   )}
                 </CardContent>
               </Card>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => downloadCSV(paymentData.byMethod, 'payments-report')}>
+                  <Download className="size-4 mr-1" /> Export CSV
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Overdue Tab */}
@@ -417,12 +447,12 @@ export default function ReportsPage() {
                           const outstanding =
                             Number(inv.netAmount || 0) - Number(inv.paidAmount || 0);
                           return (
-                            <TableRow key={inv._id}>
+                            <TableRow key={inv.id}>
                               <TableCell>
                                 <Button
                                   variant="link"
                                   className="h-auto p-0"
-                                  onClick={() => navigate(`/invoices/${inv._id}`)}
+                                  onClick={() => navigate(`/invoices/${inv.id}`)}
                                 >
                                   {inv.invoiceNo}
                                 </Button>
@@ -450,6 +480,11 @@ export default function ReportsPage() {
                   )}
                 </CardContent>
               </Card>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => downloadCSV(overdueData, 'overdue-report')}>
+                  <Download className="size-4 mr-1" /> Export CSV
+                </Button>
+              </div>
             </TabsContent>
           </>
         )}

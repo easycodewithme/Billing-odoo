@@ -70,7 +70,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field === 'templateId') {
-      const tmpl = templates.find((t) => t._id === value);
+      const tmpl = templates.find((t) => t.id === value);
       setSelectedTemplate(tmpl || null);
     }
   };
@@ -78,6 +78,11 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    if (form.startDate && form.expirationDate && new Date(form.expirationDate) <= new Date(form.startDate)) {
+      toast.error('Expiration date must be after start date');
+      setSubmitting(false);
+      return;
+    }
     try {
       const payload = {
         customerId: form.customerId,
@@ -88,7 +93,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
         notes: form.notes || undefined,
       };
       const res = await createSubscription(payload);
-      const subscriptionId = res.data.data?._id || res.data._id;
+      const subscriptionId = res.data.data?.id || res.data.id;
 
       if (form.templateId && subscriptionId) {
         await applyTemplate(subscriptionId, { templateId: form.templateId });
@@ -126,7 +131,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
               </SelectTrigger>
               <SelectContent>
                 {customers.map((c) => (
-                  <SelectItem key={c._id} value={c._id}>
+                  <SelectItem key={c.id} value={c.id}>
                     {c.name} ({c.email})
                   </SelectItem>
                 ))}
@@ -145,7 +150,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
               </SelectTrigger>
               <SelectContent>
                 {plans.map((p) => (
-                  <SelectItem key={p._id} value={p._id}>
+                  <SelectItem key={p.id} value={p.id}>
                     {p.name}
                   </SelectItem>
                 ))}
@@ -164,7 +169,7 @@ export default function SubscriptionForm({ open, onOpenChange, onSuccess }) {
               </SelectTrigger>
               <SelectContent>
                 {templates.map((t) => (
-                  <SelectItem key={t._id} value={t._id}>
+                  <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>
                 ))}

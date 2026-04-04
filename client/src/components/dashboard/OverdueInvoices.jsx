@@ -49,12 +49,12 @@ export default function OverdueInvoices({ invoices = [] }) {
             </TableHeader>
             <TableBody>
               {top5.map((inv) => (
-                <TableRow key={inv._id}>
+                <TableRow key={inv.id}>
                   <TableCell>
                     <Button
                       variant="link"
                       className="h-auto p-0"
-                      onClick={() => navigate(`/invoices/${inv._id}`)}
+                      onClick={() => navigate(`/invoices/${inv.id}`)}
                     >
                       {inv.invoiceNo}
                     </Button>

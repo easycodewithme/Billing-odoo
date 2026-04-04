@@ -41,7 +41,7 @@ export default function PaymentList({ refreshKey }) {
       }
       const res = await getPayments(params);
       setData(res.data.data || []);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch payments');
     } finally {

@@ -18,7 +18,7 @@ export default function TaxList({ onEdit, refreshKey }) {
     try {
       const res = await getTaxes({ page: pagination.page, limit: pagination.limit, search });
       setData(res.data.data);
-      setPagination((prev) => ({ ...prev, total: res.data.total }));
+      setPagination((prev) => ({ ...prev, total: res.data.pagination?.total || 0 }));
     } catch {
       toast.error('Failed to fetch taxes');
     } finally {
@@ -33,7 +33,7 @@ export default function TaxList({ onEdit, refreshKey }) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await deleteTax(deleteTarget._id);
+      await deleteTax(deleteTarget.id);
       toast.success('Tax deleted successfully');
       fetchData();
     } catch {

@@ -71,7 +71,7 @@ export default function DataTable({
       )}
 
       {/* Table */}
-      <div className="rounded-lg border">
+      <div className="rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -104,7 +104,7 @@ export default function DataTable({
             {/* Data rows */}
             {!loading &&
               data.map((row, rowIndex) => (
-                <TableRow key={row._id || row.id || rowIndex}>
+                <TableRow key={row.id || rowIndex}>
                   {columns.map((col) => (
                     <TableCell key={col.key}>
                       {col.render ? col.render(row[col.key], row) : row[col.key]}

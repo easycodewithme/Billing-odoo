@@ -101,7 +101,7 @@ export default function OrderLineTable({
       setVariants([]);
       if (value) {
         fetchVariants(value);
-        const product = products.find((p) => p._id === value);
+        const product = products.find((p) => p.id === value);
         if (product) {
           setForm((prev) => ({ ...prev, unitPrice: product.salesPrice || '' }));
         }
@@ -119,13 +119,13 @@ export default function OrderLineTable({
   const openEdit = (line) => {
     setEditLine(line);
     setForm({
-      productId: line.productId?._id || line.productId || '',
-      variantId: line.variantId?._id || line.variantId || '',
+      productId: line.productId?.id || line.productId || '',
+      variantId: line.variantId?.id || line.variantId || '',
       quantity: line.quantity || 1,
       unitPrice: line.unitPrice ?? '',
-      taxId: line.taxId?._id || line.taxId || '',
+      taxId: line.taxId?.id || line.taxId || '',
     });
-    const pid = line.productId?._id || line.productId;
+    const pid = line.productId?.id || line.productId;
     if (pid) fetchVariants(pid);
     setFormOpen(true);
   };
@@ -142,7 +142,7 @@ export default function OrderLineTable({
         taxId: form.taxId || undefined,
       };
       if (editLine) {
-        await updateOrderLine(subscriptionId, editLine._id, payload);
+        await updateOrderLine(subscriptionId, editLine.id, payload);
         toast.success('Order line updated');
       } else {
         await addOrderLine(subscriptionId, payload);
@@ -160,7 +160,7 @@ export default function OrderLineTable({
   const handleDelete = async () => {
     if (!deleteLine) return;
     try {
-      await deleteOrderLine(subscriptionId, deleteLine._id);
+      await deleteOrderLine(subscriptionId, deleteLine.id);
       toast.success('Order line deleted');
       onRefresh?.();
     } catch {
@@ -220,7 +220,7 @@ export default function OrderLineTable({
               const lineAmount = (line.quantity || 0) * (line.unitPrice || 0);
               const taxRate = line.taxId?.rate || 0;
               return (
-                <TableRow key={line._id}>
+                <TableRow key={line.id}>
                   <TableCell>
                     {line.productId?.name || '-'}
                   </TableCell>
@@ -332,7 +332,7 @@ export default function OrderLineTable({
                 </SelectTrigger>
                 <SelectContent>
                   {products.map((p) => (
-                    <SelectItem key={p._id} value={p._id}>
+                    <SelectItem key={p.id} value={p.id}>
                       {p.name}
                     </SelectItem>
                   ))}
@@ -352,7 +352,7 @@ export default function OrderLineTable({
                   </SelectTrigger>
                   <SelectContent>
                     {variants.map((v) => (
-                      <SelectItem key={v._id} value={v._id}>
+                      <SelectItem key={v.id} value={v.id}>
                         {v.name}
                       </SelectItem>
                     ))}
@@ -398,7 +398,7 @@ export default function OrderLineTable({
                 </SelectTrigger>
                 <SelectContent>
                   {taxes.map((t) => (
-                    <SelectItem key={t._id} value={t._id}>
+                    <SelectItem key={t.id} value={t.id}>
                       {t.name} ({t.rate}%)
                     </SelectItem>
                   ))}

@@ -61,6 +61,16 @@ export default function DiscountForm({ open, onOpenChange, discount, onSuccess }
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    if (form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate)) {
+      toast.error('End date must be after start date');
+      setSubmitting(false);
+      return;
+    }
+    if (form.type === 'percentage' && Number(form.value) > 100) {
+      toast.error('Percentage discount cannot exceed 100%');
+      setSubmitting(false);
+      return;
+    }
     try {
       const payload = {
         name: form.name,
@@ -73,7 +83,7 @@ export default function DiscountForm({ open, onOpenChange, discount, onSuccess }
         limitUsage: form.limitUsage ? Number(form.limitUsage) : undefined,
       };
       if (isEdit) {
-        await updateDiscount(discount._id, payload);
+        await updateDiscount(discount.id, payload);
         toast.success('Discount updated successfully');
       } else {
         await createDiscount(payload);
