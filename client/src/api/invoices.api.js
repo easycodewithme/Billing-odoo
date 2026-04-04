@@ -6,4 +6,5 @@ export const generateInvoice = (subscriptionId) => api.post(`/invoices/generate/
 export const confirmInvoice = (id) => api.patch(`/invoices/${id}/confirm`);
 export const cancelInvoice = (id) => api.patch(`/invoices/${id}/cancel`);
 export const sendInvoice = (id) => api.post(`/invoices/${id}/send`);
-export const downloadInvoicePDF = (id) => api.get(`/invoices/${id}/pdf`);
+export const downloadInvoicePDF = (id) =>
+  api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });

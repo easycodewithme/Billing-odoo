@@ -2,6 +2,8 @@ const prisma = require('../utils/prisma');
 const { success, error, paginated } = require('../utils/apiResponse');
 const { getPagination } = require('../utils/pagination');
 const invoiceService = require('../services/invoice.service');
+const { generateInvoicePDF } = require('../services/pdf.service');
+const { sendInvoiceEmail } = require('../services/email.service');
 
 /**
  * GET /invoices
@@ -13,6 +15,10 @@ const getAll = async (req, res) => {
     const { status, customerId, startDate, endDate, overdue } = req.query;
 
     const where = {};
+
+    if (req.user.role === 'portal_user') {
+      where.customerId = req.user.id;
+    }
 
     if (status) {
       where.status = status;
@@ -87,6 +93,10 @@ const getById = async (req, res) => {
       return error(res, 'Invoice not found', 404);
     }
 
+    if (req.user.role === 'portal_user' && invoice.customerId !== req.user.id) {
+      return error(res, 'Not authorized', 403);
+    }
+
     return success(res, invoice);
   } catch (err) {
     console.error('Get invoice by ID error:', err);
@@ -150,19 +160,31 @@ const cancel = async (req, res) => {
 
 /**
  * POST /invoices/:id/send
- * Send an invoice (placeholder).
+ * Generate PDF and send invoice via email.
  */
 const sendInvoice = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        invoiceLines: { include: { product: true, variant: true, tax: true } },
+        customer: true,
+        subscription: { select: { subscriptionNo: true } },
+      },
+    });
 
     if (!invoice) {
       return error(res, 'Invoice not found', 404);
     }
 
-    console.log(`Sending invoice ${invoice.invoiceNo} to customer...`);
+    if (!invoice.customer?.email) {
+      return error(res, 'Customer has no email address', 400);
+    }
+
+    const pdfBuffer = await generateInvoicePDF(invoice);
+    await sendInvoiceEmail(invoice.customer.email, invoice.invoiceNo, pdfBuffer);
 
     return success(res, { invoiceId: id }, 'Invoice sent successfully');
   } catch (err) {
@@ -173,23 +195,34 @@ const sendInvoice = async (req, res) => {
 
 /**
  * GET /invoices/:id/pdf
- * Download invoice as PDF (placeholder).
+ * Generate and download invoice as PDF.
  */
 const downloadPDF = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        invoiceLines: { include: { product: true, variant: true, tax: true } },
+        customer: true,
+        subscription: { select: { subscriptionNo: true } },
+      },
+    });
 
     if (!invoice) {
       return error(res, 'Invoice not found', 404);
     }
 
-    return success(res, {
-      invoiceId: id,
-      invoiceNo: invoice.invoiceNo,
-      message: 'PDF generation coming soon',
+    const pdfBuffer = await generateInvoicePDF(invoice);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${invoice.invoiceNo}.pdf"`,
+      'Content-Length': pdfBuffer.length,
     });
+
+    return res.send(pdfBuffer);
   } catch (err) {
     console.error('Download PDF error:', err);
     return error(res, 'Failed to generate PDF');
