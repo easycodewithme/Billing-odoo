@@ -55,8 +55,8 @@ const navSections = [
     label: 'Billing',
     items: [
       { to: '/invoices', label: 'Invoices', icon: Receipt },
-      { to: '/payments', label: 'Payments', icon: Wallet },
-      { to: '/discounts', label: 'Discounts', icon: Tag },
+      { to: '/payments', label: 'Payments', icon: Wallet, roles: ['admin', 'internal_user'] },
+      { to: '/discounts', label: 'Discounts', icon: Tag, roles: ['admin', 'internal_user'] },
     ],
   },
   {

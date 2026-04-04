@@ -5,8 +5,11 @@ import { getProducts, deleteProduct } from '@/api/products.api';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProductList({ onEdit, refreshKey }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
@@ -55,7 +58,9 @@ export default function ProductList({ onEdit, refreshKey }) {
 
   const actions = (row) => [
     { label: 'Edit', icon: Pencil, onClick: () => onEdit?.(row) },
-    { label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) },
+    ...(isAdmin
+      ? [{ label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) }]
+      : []),
   ];
 
   return (

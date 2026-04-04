@@ -46,21 +46,26 @@ export default function AppRouter() {
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
+          {/* Routes accessible to all authenticated roles */}
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/plans" element={<PlansPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/subscriptions/:id" element={<SubscriptionDetailPage />} />
-          <Route path="/quotation-templates" element={<QuotationTemplatesPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
-          <Route path="/discounts" element={<DiscountsPage />} />
-          <Route path="/taxes" element={<TaxesPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
           {/* Admin / internal_user only */}
+          <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/plans" element={<PlansPage />} />
+            <Route path="/quotation-templates" element={<QuotationTemplatesPage />} />
+            <Route path="/taxes" element={<TaxesPage />} />
+            <Route path="/discounts" element={<DiscountsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
+          {/* Admin only */}
           <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
             <Route path="/users" element={<UsersPage />} />
           </Route>
