@@ -60,16 +60,28 @@ export default function ShopPlansPage() {
   };
 
   const handleSubscribe = async () => {
+    if (!selectedPlan) {
+      toast.error('No plan selected');
+      return;
+    }
+    if (products.length === 0) {
+      toast.error('No products are available. Subscribe from a product page instead.');
+      return;
+    }
+    if (selectedProducts.length === 0) {
+      toast.error('Select at least one product');
+      return;
+    }
     setSubscribing(true);
     try {
-      const productItems = selectedProducts.map(pid => ({
+      const items = selectedProducts.map((pid) => ({
         productId: pid,
         quantity: 1,
       }));
 
-      const res = await submitSubscriptionRequest({
+      await submitSubscriptionRequest({
         planId: selectedPlan.id,
-        products: productItems.length > 0 ? productItems : undefined,
+        items,
       });
 
       toast.success('Subscription created successfully!');
@@ -169,7 +181,7 @@ export default function ShopPlansPage() {
 
               {products.length > 0 && (
                 <div>
-                  <Label className="mb-2 block">Add products to your subscription (optional):</Label>
+                  <Label className="mb-2 block">Select products to include (at least one required):</Label>
                   <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border p-3">
                     {products.map((p) => (
                       <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded p-1.5">
@@ -184,11 +196,20 @@ export default function ShopPlansPage() {
                   </div>
                 </div>
               )}
+
+              {products.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  There are no catalog products to add here. Open a product in the shop and subscribe from its page, or add products in admin.
+                </p>
+              )}
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubscribe} disabled={subscribing}>
+              <Button
+                onClick={handleSubscribe}
+                disabled={subscribing || !selectedPlan || products.length === 0 || selectedProducts.length === 0}
+              >
                 {subscribing ? 'Subscribing...' : 'Confirm Subscription'}
               </Button>
             </DialogFooter>
