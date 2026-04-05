@@ -1,21 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDiscounts, deleteDiscount } from '@/api/discounts.api';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import DiscountScopeManager from './DiscountScopeManager';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function DiscountList({ onEdit, refreshKey }) {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const isStaff = user?.role === 'admin' || user?.role === 'internal_user';
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [scopeDiscount, setScopeDiscount] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -94,10 +98,16 @@ export default function DiscountList({ onEdit, refreshKey }) {
   ];
 
   const actions = isStaff
-    ? (row) => [
-        { label: 'Edit', icon: Pencil, onClick: () => onEdit?.(row) },
-        { label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) },
-      ]
+    ? (row) => {
+        const items = [
+          { label: 'Edit', icon: Pencil, onClick: () => onEdit?.(row) },
+          { label: 'Scope', icon: Link2, onClick: () => setScopeDiscount(row) },
+        ];
+        if (isAdmin) {
+          items.push({ label: 'Delete', icon: Trash2, variant: 'destructive', onClick: () => setDeleteTarget(row) });
+        }
+        return items;
+      }
     : undefined;
 
   return (
@@ -120,6 +130,18 @@ export default function DiscountList({ onEdit, refreshKey }) {
         description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
         onConfirm={handleDelete}
       />
+
+      {/* Discount Scope Manager Dialog */}
+      <Dialog open={!!scopeDiscount} onOpenChange={(open) => !open && setScopeDiscount(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Applies To - {scopeDiscount?.name}</DialogTitle>
+          </DialogHeader>
+          {scopeDiscount && (
+            <DiscountScopeManager discountId={scopeDiscount.id} />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

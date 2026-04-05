@@ -14,5 +14,6 @@ router.post('/subscribe', authenticate, shopController.subscribe);
 router.post('/subscriptions/:id/accept', authenticate, shopController.acceptQuotation);
 router.post('/subscriptions/:id/reject', authenticate, shopController.rejectQuotation);
 router.post('/subscriptions/:id/pay', authenticate, shopController.paySubscription);
+router.post('/subscriptions/:id/confirm-payment', authenticate, shopController.confirmPayment);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const app = require('./src/app');
 const config = require('./src/config/env');
 const cron = require('node-cron');
-const { processRecurringBilling } = require('./src/services/billing.service');
+const { runBillingCycle } = require('./src/services/billing.service');
 
 const PORT = config.PORT || 5000;
 
@@ -11,7 +11,7 @@ app.listen(PORT, () => {
 
   // Run recurring billing every day at midnight
   cron.schedule('0 0 * * *', () => {
-    processRecurringBilling().catch(console.error);
+    runBillingCycle().catch(console.error);
   });
-  console.log('Recurring billing cron scheduled (daily at midnight)');
+  console.log('Billing cycle cron scheduled (daily at midnight): auto-close, billing, auto-renew');
 });

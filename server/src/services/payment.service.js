@@ -133,11 +133,19 @@ const handleStripeWebhook = async (event) => {
       if (session.metadata?.type === 'subscription_payment') {
         const subId = session.metadata.subscriptionId;
         if (subId) {
-          // Generate invoice and mark as paid
           const invoiceService = require('./invoice.service');
           try {
-            const invoice = await invoiceService.generateInvoice(subId);
-            await invoiceService.confirmInvoice(invoice.id, null);
+            // Generate invoice on payment (invoice is NOT created before payment)
+            let invoice = await prisma.invoice.findFirst({
+              where: { subscriptionId: subId, status: { in: ['confirmed', 'draft'] } },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (!invoice) {
+              invoice = await invoiceService.generateInvoice(subId);
+            }
+            if (invoice.status === 'draft') {
+              await invoiceService.confirmInvoice(invoice.id, null);
+            }
 
             // Record payment
             await prisma.payment.create({

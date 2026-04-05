@@ -11,7 +11,7 @@ router.get('/', authenticate, authorize('admin', 'internal_user'), discountsCont
 router.get('/:id', authenticate, authorize('admin', 'internal_user'), discountsController.getById);
 router.post('/', authenticate, authorize('admin', 'internal_user'), validate(createSchema), discountsController.create);
 router.put('/:id', authenticate, authorize('admin', 'internal_user'), validate(updateSchema), discountsController.update);
-router.delete('/:id', authenticate, authorize('admin', 'internal_user'), discountsController.remove);
+router.delete('/:id', authenticate, authorize('admin'), discountsController.remove);
 
 // Product attachment routes
 router.post('/:id/products', authenticate, authorize('admin', 'internal_user'), discountsController.attachProduct);

@@ -51,23 +51,18 @@ const generateInvoice = async (subscriptionId) => {
   const invoiceNo = generateInvoiceNo();
 
   // Calculate line-level amounts
+  // Order: discount first, then tax on discounted amount
   const invoiceLines = [];
   for (const line of subscription.orderLines) {
     const lineAmount = Number(line.quantity) * Number(line.unitPrice);
 
-    // Calculate tax amount
-    let taxAmount = 0;
-    if (line.tax) {
-      taxAmount = lineAmount * (Number(line.tax.rate) / 100);
-    }
-
-    // Calculate discount amount
+    // Calculate discount amount first
     let discountAmount = 0;
     if (line.discount) {
       const now = new Date();
-      const discountStart = new Date(line.discount.startDate);
-      const discountEnd = new Date(line.discount.endDate);
-      const isDateValid = now >= discountStart && now <= discountEnd;
+      const discountStart = line.discount.startDate ? new Date(line.discount.startDate) : null;
+      const discountEnd = line.discount.endDate ? new Date(line.discount.endDate) : null;
+      const isDateValid = (!discountStart || now >= discountStart) && (!discountEnd || now <= discountEnd);
       const isUsageValid = !line.discount.limitUsage || line.discount.currentUsage < line.discount.limitUsage;
       const isPurchaseValid = !line.discount.minPurchase || lineAmount >= Number(line.discount.minPurchase);
       const isQuantityValid = !line.discount.minQuantity || line.quantity >= line.discount.minQuantity;
@@ -76,7 +71,7 @@ const generateInvoice = async (subscriptionId) => {
         if (line.discount.type === 'percentage') {
           discountAmount = lineAmount * (Number(line.discount.value) / 100);
         } else {
-          discountAmount = Number(line.discount.value);
+          discountAmount = Math.min(Number(line.discount.value), lineAmount);
         }
         // Increment usage atomically
         await prisma.discount.update({
@@ -84,6 +79,13 @@ const generateInvoice = async (subscriptionId) => {
           data: { currentUsage: { increment: 1 } },
         });
       }
+    }
+
+    // Calculate tax on the discounted amount (not the original amount)
+    const taxableAmount = lineAmount - discountAmount;
+    let taxAmount = 0;
+    if (line.tax) {
+      taxAmount = taxableAmount * (Number(line.tax.rate) / 100);
     }
 
     invoiceLines.push({

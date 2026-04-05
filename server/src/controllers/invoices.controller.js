@@ -12,12 +12,16 @@ const { sendInvoiceEmail } = require('../services/email.service');
 const getAll = async (req, res) => {
   try {
     const { skip, take, page, limit } = getPagination(req.query);
-    const { status, customerId, startDate, endDate, overdue } = req.query;
+    const { status, customerId, subscriptionId, startDate, endDate, overdue } = req.query;
 
     const where = {};
 
     if (req.user.role === 'portal_user') {
       where.customerId = req.user.id;
+    }
+
+    if (subscriptionId) {
+      where.subscriptionId = subscriptionId;
     }
 
     if (status) {

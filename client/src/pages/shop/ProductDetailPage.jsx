@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { ChevronLeft, Check, ShoppingCart } from 'lucide-react';
 import { getShopProduct, getShopPlans, submitSubscriptionRequest } from '@/api/shop.api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,7 +45,13 @@ export default function ProductDetailPage() {
     }
   };
 
-  const currentPrice = Number(product?.salesPrice || 0) + Number(selectedVariant?.extraPrice || 0);
+  // The subscription price is the plan price * quantity
+  const planPrice = Number(selectedPlan?.price || 0);
+  const totalPrice = planPrice * quantity;
+  const lowestPlanPrice = plans.length > 0
+    ? Math.min(...plans.map(p => Number(p.price)))
+    : null;
+  const lowestPlan = plans.find(p => Number(p.price) === lowestPlanPrice);
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
@@ -103,12 +108,25 @@ export default function ProductDetailPage() {
           <div>
             {product.productType && <Badge variant="secondary">{product.productType}</Badge>}
             <h1 className="text-3xl font-bold mt-2">{product.name}</h1>
-            <p className="text-3xl font-bold text-primary mt-2">${currentPrice.toFixed(2)}</p>
-            {selectedVariant && (
-              <p className="text-sm text-muted-foreground">
-                Base ${Number(product.salesPrice).toFixed(2)} + ${Number(selectedVariant.extraPrice).toFixed(2)} ({selectedVariant.attribute}: {selectedVariant.value})
+            {/* Show the plan-based price * quantity */}
+            {selectedPlan ? (
+              <div className="mt-2">
+                <p className="text-3xl font-bold text-primary">
+                  ${totalPrice.toFixed(2)}
+                  <span className="text-base font-normal text-muted-foreground">{PERIOD_LABELS[selectedPlan.billingPeriod]}</span>
+                </p>
+                {quantity > 1 && (
+                  <p className="text-sm text-muted-foreground">
+                    ${planPrice.toFixed(2)} x {quantity} units
+                  </p>
+                )}
+              </div>
+            ) : lowestPlanPrice !== null ? (
+              <p className="text-3xl font-bold text-primary mt-2">
+                From ${lowestPlanPrice.toFixed(2)}
+                <span className="text-base font-normal text-muted-foreground">{PERIOD_LABELS[lowestPlan?.billingPeriod]}</span>
               </p>
-            )}
+            ) : null}
           </div>
 
           {product.description && <p className="text-muted-foreground">{product.description}</p>}
@@ -126,7 +144,6 @@ export default function ProductDetailPage() {
                       <Button key={v.id} variant={selectedVariant?.id === v.id ? 'default' : 'outline'} size="sm"
                         onClick={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}>
                         {v.value}
-                        {Number(v.extraPrice) > 0 && ` (+$${Number(v.extraPrice).toFixed(2)})`}
                         {selectedVariant?.id === v.id && <Check className="size-3 ml-1" />}
                       </Button>
                     ))}
@@ -148,7 +165,7 @@ export default function ProductDetailPage() {
 
           <Separator />
 
-          {/* Plan Selection */}
+          {/* Plan Selection - this IS the pricing */}
           <div>
             <Label className="mb-2 block font-semibold">Select Subscription Plan *</Label>
             <div className="grid gap-2">
@@ -183,12 +200,15 @@ export default function ProductDetailPage() {
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requirements..." rows={2} />
           </div>
 
-          <Separator />
-
           {/* Subscribe Button */}
           <Button size="lg" className="w-full text-base h-12" onClick={handleSubscribe} disabled={submitting || !selectedPlan}>
             <ShoppingCart className="size-5 mr-2" />
-            {submitting ? 'Submitting...' : `Subscribe - $${(currentPrice * quantity).toFixed(2)}${PERIOD_LABELS[selectedPlan?.billingPeriod] || ''}`}
+            {submitting
+              ? 'Submitting...'
+              : selectedPlan
+                ? `Subscribe - $${totalPrice.toFixed(2)}${PERIOD_LABELS[selectedPlan.billingPeriod]}`
+                : 'Select a plan to subscribe'
+            }
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">

@@ -8,6 +8,7 @@ import {
 } from '@/api/subscriptions.api';
 import { getProducts, getProduct } from '@/api/products.api';
 import { getTaxes } from '@/api/taxes.api';
+import { getDiscounts } from '@/api/discounts.api';
 import {
   Table,
   TableHeader,
@@ -42,6 +43,7 @@ const initialLine = {
   quantity: 1,
   unitPrice: '',
   taxId: '',
+  discountId: '',
 };
 
 export default function OrderLineTable({
@@ -60,11 +62,13 @@ export default function OrderLineTable({
   const [products, setProducts] = useState([]);
   const [variants, setVariants] = useState([]);
   const [taxes, setTaxes] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
 
   useEffect(() => {
     if (formOpen) {
       fetchProducts();
       fetchTaxes();
+      fetchDiscounts();
     }
   }, [formOpen]);
 
@@ -83,6 +87,15 @@ export default function OrderLineTable({
       setTaxes(res.data.data || []);
     } catch {
       toast.error('Failed to load taxes');
+    }
+  };
+
+  const fetchDiscounts = async () => {
+    try {
+      const res = await getDiscounts({ limit: 100 });
+      setDiscounts(res.data.data || []);
+    } catch {
+      // Discounts may not be accessible for all roles — silent fail
     }
   };
 
@@ -121,11 +134,12 @@ export default function OrderLineTable({
   const openEdit = (line) => {
     setEditLine(line);
     setForm({
-      productId: line.product?.id || line.productId?.id || line.productId || '',
-      variantId: line.variant?.id || line.variantId?.id || line.variantId || '',
+      productId: line.product?.id || line.productId || '',
+      variantId: line.variant?.id || line.variantId || '',
       quantity: line.quantity || 1,
       unitPrice: line.unitPrice ?? '',
-      taxId: line.tax?.id || line.taxId?.id || line.taxId || '',
+      taxId: line.tax?.id || line.taxId || '',
+      discountId: line.discount?.id || line.discountId || '',
     });
     const pid = line.product?.id || line.productId?.id || line.productId;
     if (pid) fetchVariants(pid);
@@ -142,6 +156,7 @@ export default function OrderLineTable({
         quantity: Number(form.quantity),
         unitPrice: Number(form.unitPrice),
         taxId: form.taxId || undefined,
+        discountId: form.discountId || undefined,
       };
       if (editLine) {
         await updateOrderLine(subscriptionId, editLine.id, payload);
@@ -175,13 +190,31 @@ export default function OrderLineTable({
     return sum + amount;
   }, 0);
 
-  const taxTotal = orderLines.reduce((sum, line) => {
+  const discountTotal = orderLines.reduce((sum, line) => {
     const amount = (line.quantity || 0) * (line.unitPrice || 0);
-    const taxRate = line.tax?.rate || line.taxId?.rate || 0;
-    return sum + amount * (taxRate / 100);
+    const discount = line.discount || line.discountId;
+    if (!discount || !discount.value) return sum;
+    if (discount.type === 'percentage') {
+      return sum + amount * (Number(discount.value) / 100);
+    }
+    return sum + Math.min(Number(discount.value), amount);
   }, 0);
 
-  const grandTotal = subtotal + taxTotal;
+  const taxTotal = orderLines.reduce((sum, line) => {
+    const amount = (line.quantity || 0) * (line.unitPrice || 0);
+    const discount = line.discount || line.discountId;
+    let lineDiscount = 0;
+    if (discount && discount.value) {
+      lineDiscount = discount.type === 'percentage'
+        ? amount * (Number(discount.value) / 100)
+        : Math.min(Number(discount.value), amount);
+    }
+    const taxableAmount = amount - lineDiscount;
+    const taxRate = line.tax?.rate || line.taxId?.rate || 0;
+    return sum + taxableAmount * (taxRate / 100);
+  }, 0);
+
+  const grandTotal = subtotal - discountTotal + taxTotal;
 
   return (
     <div className="space-y-4">
@@ -203,6 +236,7 @@ export default function OrderLineTable({
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Unit Price</TableHead>
               <TableHead className="text-right">Tax</TableHead>
+              <TableHead className="text-right">Discount</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               {editable && <TableHead className="w-24">Actions</TableHead>}
             </TableRow>
@@ -211,7 +245,7 @@ export default function OrderLineTable({
             {orderLines.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={editable ? 7 : 6}
+                  colSpan={editable ? 8 : 7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No order lines yet.
@@ -221,13 +255,22 @@ export default function OrderLineTable({
             {orderLines.map((line) => {
               const lineAmount = (line.quantity || 0) * (line.unitPrice || 0);
               const taxRate = line.tax?.rate || line.taxId?.rate || 0;
+              const discount = line.discount || line.discountId;
+              let lineDiscountAmt = 0;
+              if (discount && discount.value) {
+                lineDiscountAmt = discount.type === 'percentage'
+                  ? lineAmount * (Number(discount.value) / 100)
+                  : Math.min(Number(discount.value), lineAmount);
+              }
               return (
                 <TableRow key={line.id}>
                   <TableCell>
-                    {line.product?.name || line.productId?.name || '-'}
+                    {line.product?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    {line.variant?.name || line.variantId?.name || '-'}
+                    {line.variant
+                      ? `${line.variant.attribute}: ${line.variant.value}`
+                      : '-'}
                   </TableCell>
                   <TableCell className="text-right">{line.quantity}</TableCell>
                   <TableCell className="text-right">
@@ -235,6 +278,9 @@ export default function OrderLineTable({
                   </TableCell>
                   <TableCell className="text-right">
                     {taxRate > 0 ? `${taxRate}%` : '-'}
+                  </TableCell>
+                  <TableCell className="text-right text-destructive">
+                    {lineDiscountAmt > 0 ? `-$${lineDiscountAmt.toFixed(2)}` : '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     ${lineAmount.toFixed(2)}
@@ -268,7 +314,7 @@ export default function OrderLineTable({
               <>
                 <TableRow>
                   <TableCell
-                    colSpan={editable ? 5 : 4}
+                    colSpan={editable ? 6 : 5}
                     className="text-right font-medium"
                   >
                     Subtotal
@@ -278,9 +324,23 @@ export default function OrderLineTable({
                   </TableCell>
                   {editable && <TableCell />}
                 </TableRow>
+                {discountTotal > 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={editable ? 6 : 5}
+                      className="text-right font-medium text-destructive"
+                    >
+                      Discount
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-destructive">
+                      -${discountTotal.toFixed(2)}
+                    </TableCell>
+                    {editable && <TableCell />}
+                  </TableRow>
+                )}
                 <TableRow>
                   <TableCell
-                    colSpan={editable ? 5 : 4}
+                    colSpan={editable ? 6 : 5}
                     className="text-right font-medium"
                   >
                     Tax
@@ -292,7 +352,7 @@ export default function OrderLineTable({
                 </TableRow>
                 <TableRow>
                   <TableCell
-                    colSpan={editable ? 5 : 4}
+                    colSpan={editable ? 6 : 5}
                     className="text-right text-base font-bold"
                   >
                     Total
@@ -355,7 +415,7 @@ export default function OrderLineTable({
                   <SelectContent>
                     {variants.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
-                        {v.name}
+                        {v.attribute}: {v.value}{Number(v.extraPrice) > 0 ? ` (+$${Number(v.extraPrice).toFixed(2)})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -407,6 +467,27 @@ export default function OrderLineTable({
                 </SelectContent>
               </Select>
             </div>
+
+            {discounts.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="ol-discount">Discount</Label>
+                <Select
+                  value={form.discountId}
+                  onValueChange={(val) => handleChange('discountId', val)}
+                >
+                  <SelectTrigger className="w-full" id="ol-discount">
+                    <SelectValue placeholder="No discount" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {discounts.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name} ({d.type === 'percentage' ? `${d.value}%` : `$${Number(d.value).toFixed(2)}`})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <DialogFooter>
               <Button

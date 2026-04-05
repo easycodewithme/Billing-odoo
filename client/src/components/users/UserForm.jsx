@@ -85,6 +85,22 @@ export default function UserForm({ open, onOpenChange, user, onSuccess }) {
           </DialogDescription>
         </DialogHeader>
 
+        {!isEdit ? (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+            <span className="text-sm text-muted-foreground">Role:</span>
+            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+              Internal User
+            </span>
+          </div>
+        ) : user?.role && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+            <span className="text-sm text-muted-foreground">Role:</span>
+            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+              {user.role === 'admin' ? 'Admin' : user.role === 'internal_user' ? 'Internal User' : 'Portal User'}
+            </span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="userFullName">Full Name</Label>
@@ -132,8 +148,11 @@ export default function UserForm({ open, onOpenChange, user, onSuccess }) {
                 onChange={(e) => handleChange('password', e.target.value)}
                 placeholder="Password"
                 required
-                minLength={6}
+                minLength={9}
               />
+              <p className="text-xs text-muted-foreground">
+                Must be longer than 8 chars with uppercase, lowercase, and special character
+              </p>
             </div>
           )}
 

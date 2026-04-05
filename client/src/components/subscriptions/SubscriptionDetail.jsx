@@ -33,18 +33,14 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-// Staff transitions: Internal user should NOT activate (that happens via payment)
-// Internal can: send quotation (draft→quotation), confirm quotation (quotation→confirmed)
-// Only system/webhook should activate (confirmed→active after payment)
-// Staff can pause/close active subs
+// Staff can: send quotation (draft→quotation), pause/close active subs
+// Portal user confirms quotation (quotation→confirmed via accept)
+// Activation happens automatically after Stripe payment (confirmed→active)
 const STATUS_TRANSITIONS = {
   [SUBSCRIPTION_STATUS.DRAFT]: [
     { target: 'quotation', label: 'Send Quotation', icon: Send, variant: 'default' },
   ],
-  quotation: [
-    { target: 'confirmed', label: 'Confirm Quotation', icon: CheckCircle, variant: 'default' },
-  ],
-  // No manual activation - happens automatically after payment
+  // No staff action on quotation — only portal user can accept/reject
   [SUBSCRIPTION_STATUS.ACTIVE]: [
     { target: 'paused', label: 'Pause', icon: Pause, variant: 'secondary', requirePausable: true },
     { target: 'closed', label: 'Close', icon: XCircle, variant: 'destructive', requireClosable: true },
@@ -67,7 +63,7 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
     setProcessing(true);
     try {
       await acceptQuotation(subscription.id);
-      toast.success('Quotation accepted! You can now proceed to payment.');
+      toast.success('Quotation accepted! Please click "Pay Now" to complete your subscription.');
       onRefresh?.();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to accept quotation');

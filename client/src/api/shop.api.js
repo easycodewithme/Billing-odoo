@@ -7,3 +7,4 @@ export const submitSubscriptionRequest = (data) => api.post('/shop/subscribe', d
 export const acceptQuotation = (id) => api.post(`/shop/subscriptions/${id}/accept`);
 export const rejectQuotation = (id, data) => api.post(`/shop/subscriptions/${id}/reject`, data);
 export const paySubscription = (id) => api.post(`/shop/subscriptions/${id}/pay`);
+export const confirmPayment = (id) => api.post(`/shop/subscriptions/${id}/confirm-payment`);

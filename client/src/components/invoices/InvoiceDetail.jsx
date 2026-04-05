@@ -43,16 +43,18 @@ export default function InvoiceDetail({ invoice, onRefresh }) {
     (sum, l) => sum + (l.quantity || 0) * (l.unitPrice || 0),
     0
   );
-  const taxTotal = lines.reduce((sum, l) => {
-    const amount = (l.quantity || 0) * (l.unitPrice || 0);
-    const taxRate = l.tax?.rate || 0;
-    return sum + amount * (taxRate / 100);
-  }, 0);
   const discountTotal = lines.reduce(
     (sum, l) => sum + Number(l.discountAmount || 0),
     0
   );
-  const netTotal = Number(invoice.netAmount || subtotal + taxTotal - discountTotal);
+  const taxTotal = lines.reduce((sum, l) => {
+    const amount = (l.quantity || 0) * (l.unitPrice || 0);
+    const lineDiscount = Number(l.discountAmount || 0);
+    const taxableAmount = amount - lineDiscount;
+    const taxRate = l.tax?.rate || 0;
+    return sum + taxableAmount * (taxRate / 100);
+  }, 0);
+  const netTotal = Number(invoice.netAmount || subtotal - discountTotal + taxTotal);
   const paidAmount = Number(invoice.paidAmount || 0);
   const outstandingAmount = netTotal - paidAmount;
 

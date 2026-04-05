@@ -1,13 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pencil, Trash2, Layers } from 'lucide-react';
 import { toast } from 'sonner';
-import { getProducts, deleteProduct } from '@/api/products.api';
+import { getProducts, getProduct, deleteProduct } from '@/api/products.api';
 import DataTable from '@/components/shared/DataTable';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import VariantManager from './VariantManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
+
+function VariantManagerWithData({ productId, onRefresh }) {
+  const [variants, setVariants] = useState([]);
+
+  const fetchVariants = useCallback(async () => {
+    try {
+      const res = await getProduct(productId);
+      setVariants(res.data.data?.variants || res.data.variants || []);
+    } catch {
+      toast.error('Failed to fetch variants');
+    }
+  }, [productId]);
+
+  useEffect(() => {
+    fetchVariants();
+  }, [fetchVariants]);
+
+  return (
+    <VariantManager
+      productId={productId}
+      variants={variants}
+      onRefresh={() => { fetchVariants(); onRefresh?.(); }}
+    />
+  );
+}
 
 export default function ProductList({ onEdit, refreshKey }) {
   const { user } = useAuth();
@@ -95,7 +120,7 @@ export default function ProductList({ onEdit, refreshKey }) {
             <DialogTitle>Variants - {variantProduct?.name}</DialogTitle>
           </DialogHeader>
           {variantProduct && (
-            <VariantManager productId={variantProduct.id} onRefresh={fetchData} />
+            <VariantManagerWithData productId={variantProduct.id} onRefresh={fetchData} />
           )}
         </DialogContent>
       </Dialog>

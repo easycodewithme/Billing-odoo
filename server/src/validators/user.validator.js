@@ -10,9 +10,10 @@ const createSchema = Joi.object({
     'any.required': 'Email is required',
     'string.email': 'Please provide a valid email address',
   }),
-  password: Joi.string().min(8).required().messages({
+  password: Joi.string().min(9).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/).required().messages({
     'any.required': 'Password is required',
-    'string.min': 'Password must be at least 8 characters',
+    'string.min': 'Password must be longer than 8 characters',
+    'string.pattern.base': 'Password must contain uppercase, lowercase, and special character',
   }),
   role: Joi.string().valid('internal_user').optional().default('internal_user').messages({
     'any.only': 'Role must be internal_user',

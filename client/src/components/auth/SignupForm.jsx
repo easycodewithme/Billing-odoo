@@ -43,8 +43,14 @@ export default function SignupForm() {
     }
     if (!form.password) {
       newErrors.password = 'Password is required';
-    } else if (form.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    } else if (form.password.length < 9) {
+      newErrors.password = 'Password must be longer than 8 characters';
+    } else if (!/[A-Z]/.test(form.password)) {
+      newErrors.password = 'Password must contain an uppercase letter';
+    } else if (!/[a-z]/.test(form.password)) {
+      newErrors.password = 'Password must contain a lowercase letter';
+    } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.password)) {
+      newErrors.password = 'Password must contain a special character';
     }
     if (!form.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
@@ -139,7 +145,7 @@ export default function SignupForm() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="At least 8 characters"
+                placeholder="More than 8 characters"
                 value={form.password}
                 onChange={handleChange}
                 aria-invalid={!!errors.password}
@@ -209,7 +215,7 @@ export default function SignupForm() {
 
 function PasswordPolicy({ password }) {
   const rules = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
+    { label: 'More than 8 characters', valid: password.length >= 9 },
     { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
     { label: 'One lowercase letter', valid: /[a-z]/.test(password) },
     { label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test(password) },

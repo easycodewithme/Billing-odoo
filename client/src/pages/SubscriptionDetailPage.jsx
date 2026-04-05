@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileText, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSubscription } from '@/api/subscriptions.api';
 import { getInvoices, generateInvoice } from '@/api/invoices.api';
+import { confirmPayment } from '@/api/shop.api';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
@@ -51,10 +52,38 @@ export default function SubscriptionDetailPage() {
     }
   }, [id]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     fetchSubscription();
     fetchInvoices();
   }, [fetchSubscription, fetchInvoices]);
+
+  // After returning from Stripe, verify payment and activate subscription
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (!paymentStatus || !id) return;
+
+    if (paymentStatus === 'success') {
+      const verify = async () => {
+        try {
+          const res = await confirmPayment(id);
+          const msg = res.data?.message || 'Payment verified';
+          toast.success(msg);
+          fetchSubscription();
+          fetchInvoices();
+        } catch {
+          toast.error('Could not verify payment — it may still be processing. Please refresh.');
+        } finally {
+          setSearchParams({}, { replace: true });
+        }
+      };
+      verify();
+    } else if (paymentStatus === 'cancelled') {
+      toast.info('Payment was cancelled. You can try again when ready.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, id]);
 
   const handleGenerateInvoice = async () => {
     setGenerating(true);
@@ -90,14 +119,34 @@ export default function SubscriptionDetailPage() {
   const invoiceColumns = [
     { key: 'invoiceNo', label: 'Invoice No' },
     {
-      key: 'issueDate',
+      key: 'issuedAt',
       label: 'Date',
+      render: (val, row) => {
+        const date = val || row.createdAt;
+        return date ? new Date(date).toLocaleDateString() : '-';
+      },
+    },
+    {
+      key: 'dueDate',
+      label: 'Due Date',
       render: (val) => (val ? new Date(val).toLocaleDateString() : '-'),
     },
     {
       key: 'netAmount',
       label: 'Amount',
       render: (val) => `$${Number(val || 0).toFixed(2)}`,
+    },
+    {
+      key: 'outstandingAmount',
+      label: 'Outstanding',
+      render: (val) => {
+        const amount = Number(val || 0);
+        return (
+          <span className={amount > 0 ? 'text-destructive font-medium' : 'text-green-600'}>
+            ${amount.toFixed(2)}
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -166,12 +215,19 @@ export default function SubscriptionDetailPage() {
               </Button>
             </div>
           )}
-          <DataTable
-            columns={invoiceColumns}
-            data={invoices}
-            loading={invoicesLoading}
-            actions={invoiceActions}
-          />
+          {!invoicesLoading && invoices.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="size-10 mx-auto mb-3 opacity-30" />
+              <p>No invoices generated yet for this subscription.</p>
+            </div>
+          ) : (
+            <DataTable
+              columns={invoiceColumns}
+              data={invoices}
+              loading={invoicesLoading}
+              actions={invoiceActions}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">

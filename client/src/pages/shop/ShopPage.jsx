@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Search, ShoppingCart, SlidersHorizontal } from 'lucide-react';
-import { getShopProducts } from '@/api/shop.api';
+import { getShopProducts, getShopPlans } from '@/api/shop.api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,9 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
+const PERIOD_LABELS = { daily: '/day', weekly: '/week', monthly: '/mo', yearly: '/yr' };
+
 export default function ShopPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('');
@@ -20,6 +23,17 @@ export default function ShopPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 12;
+
+  // Fetch plans once on mount
+  useEffect(() => {
+    getShopPlans()
+      .then(res => setPlans(res.data.data || res.data || []))
+      .catch(() => {});
+  }, []);
+
+  const lowestPlan = plans.length > 0
+    ? plans.reduce((min, p) => Number(p.price) < Number(min.price) ? p : min, plans[0])
+    : null;
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -119,7 +133,14 @@ export default function ShopPage() {
                           <Badge variant="secondary" className="mt-1 text-xs">{product.productType}</Badge>
                         )}
                       </div>
-                      <p className="text-lg font-bold whitespace-nowrap">${Number(product.salesPrice).toFixed(2)}</p>
+                      {lowestPlan ? (
+                        <div className="text-right shrink-0">
+                          <p className="text-lg font-bold whitespace-nowrap">${Number(lowestPlan.price).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">{PERIOD_LABELS[lowestPlan.billingPeriod]}</p>
+                        </div>
+                      ) : (
+                        <p className="text-lg font-bold whitespace-nowrap">${Number(product.salesPrice).toFixed(2)}</p>
+                      )}
                     </div>
                     {product.description && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{product.description}</p>

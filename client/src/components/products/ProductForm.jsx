@@ -79,8 +79,8 @@ export default function ProductForm({ open, onOpenChange, product, onSuccess }) 
     try {
       const res = await uploadFile('products', file);
       const data = res.data?.data || res.data;
-      const imagePath = data?.path || data?.filename || '';
-      handleChange('image', `/uploads/products/${imagePath}`);
+      const imagePath = data?.path || `/uploads/products/${data?.filename || ''}`;
+      handleChange('image', imagePath);
       toast.success('Image uploaded');
     } catch {
       toast.error('Failed to upload image');

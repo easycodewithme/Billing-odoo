@@ -79,6 +79,7 @@ const getById = async (req, res) => {
             product: true,
             variant: true,
             tax: true,
+            discount: true,
           },
         },
         invoices: true,

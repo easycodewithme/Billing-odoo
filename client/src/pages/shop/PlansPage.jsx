@@ -59,6 +59,8 @@ export default function ShopPlansPage() {
     );
   };
 
+  const cartTotal = Number(selectedPlan?.price || 0);
+
   const handleSubscribe = async () => {
     if (!selectedPlan) {
       toast.error('No plan selected');
@@ -84,7 +86,7 @@ export default function ShopPlansPage() {
         items,
       });
 
-      toast.success('Subscription created successfully!');
+      toast.success('Subscription request submitted! Our team will review and send you a quotation.');
       setDialogOpen(false);
       navigate('/subscriptions');
     } catch (err) {
@@ -174,23 +176,29 @@ export default function ShopPlansPage() {
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* Plan price */}
               <div className="rounded-lg bg-muted/50 p-4">
-                <p className="font-medium">${Number(selectedPlan?.price || 0).toFixed(2)} {PERIOD_LABELS[selectedPlan?.billingPeriod]}</p>
-                <p className="text-sm text-muted-foreground">Billed {selectedPlan?.billingPeriod}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{selectedPlan?.name} Plan</p>
+                    <p className="text-sm text-muted-foreground">Billed {selectedPlan?.billingPeriod}</p>
+                  </div>
+                  <p className="font-bold">${Number(selectedPlan?.price || 0).toFixed(2)}{PERIOD_LABELS[selectedPlan?.billingPeriod]}</p>
+                </div>
               </div>
 
+              {/* Product selection */}
               {products.length > 0 && (
                 <div>
                   <Label className="mb-2 block">Select products to include (at least one required):</Label>
                   <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border p-3">
                     {products.map((p) => (
-                      <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded p-1.5">
+                      <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-accent/50 rounded p-2">
                         <Checkbox
                           checked={selectedProducts.includes(p.id)}
                           onCheckedChange={() => toggleProduct(p.id)}
                         />
                         <span className="flex-1 text-sm">{p.name}</span>
-                        <span className="text-sm font-medium">${Number(p.salesPrice).toFixed(2)}</span>
                       </label>
                     ))}
                   </div>
@@ -202,6 +210,14 @@ export default function ShopPlansPage() {
                   There are no catalog products to add here. Open a product in the shop and subscribe from its page, or add products in admin.
                 </p>
               )}
+
+              {/* Price summary */}
+              <div className="rounded-lg border p-4">
+                <div className="flex justify-between font-bold">
+                  <span>Total{PERIOD_LABELS[selectedPlan?.billingPeriod]}</span>
+                  <span className="text-primary">${cartTotal.toFixed(2)}</span>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>
@@ -210,7 +226,7 @@ export default function ShopPlansPage() {
                 onClick={handleSubscribe}
                 disabled={subscribing || !selectedPlan || products.length === 0 || selectedProducts.length === 0}
               >
-                {subscribing ? 'Subscribing...' : 'Confirm Subscription'}
+                {subscribing ? 'Subscribing...' : `Subscribe - $${cartTotal.toFixed(2)}${PERIOD_LABELS[selectedPlan?.billingPeriod] || ''}`}
               </Button>
             </DialogFooter>
           </DialogContent>

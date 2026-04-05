@@ -65,8 +65,12 @@ export default function AppRouter() {
             <Route path="/plans" element={<PlansPage />} />
             <Route path="/quotation-templates" element={<QuotationTemplatesPage />} />
             <Route path="/taxes" element={<TaxesPage />} />
-            <Route path="/discounts" element={<DiscountsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
+          {/* Admin / internal_user */}
+          <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>
+            <Route path="/discounts" element={<DiscountsPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={['admin', 'internal_user']} />}>

@@ -76,7 +76,8 @@ const subscribe = async (req, res) => {
     const plan = await prisma.recurringPlan.findUnique({ where: { id: planId } });
     if (!plan || !plan.isActive) return error(res, 'Plan not found', 404);
 
-    // Build order lines
+    // Build order lines — unitPrice is the plan price (subscription cost)
+    const planUnitPrice = Number(plan.price);
     const orderLineData = [];
     for (const item of items) {
       const product = await prisma.product.findUnique({
@@ -85,10 +86,9 @@ const subscribe = async (req, res) => {
       });
       if (!product || !product.isActive) continue;
 
-      let unitPrice = Number(product.salesPrice);
       if (item.variantId) {
         const variant = product.variants.find(v => v.id === item.variantId);
-        if (variant) unitPrice += Number(variant.extraPrice);
+        if (!variant) continue;
       }
       const qty = item.quantity || 1;
 
@@ -96,8 +96,8 @@ const subscribe = async (req, res) => {
         productId: item.productId,
         variantId: item.variantId || null,
         quantity: qty,
-        unitPrice,
-        amount: qty * unitPrice,
+        unitPrice: planUnitPrice,
+        amount: qty * planUnitPrice,
       });
     }
 
@@ -173,18 +173,8 @@ const acceptQuotation = async (req, res) => {
       return sub;
     });
 
-    // Auto-generate and confirm invoice
-    let invoice = null;
-    try {
-      const invoiceService = require('../services/invoice.service');
-      invoice = await invoiceService.generateInvoice(id);
-      await invoiceService.confirmInvoice(invoice.id, req.user.id);
-      console.log(`Auto-generated invoice ${invoice.invoiceNo} for subscription ${id}`);
-    } catch (invErr) {
-      console.warn('Auto-invoice generation failed:', invErr.message);
-    }
-
-    return success(res, { ...updated, invoice }, 'Quotation accepted. Invoice generated - please proceed to payment.');
+    // No invoice generated here — invoice is created automatically after payment via Stripe webhook
+    return success(res, updated, 'Quotation accepted. Please proceed to payment.');
   } catch (err) {
     console.error('Accept quotation error:', err);
     return error(res, 'Failed to accept quotation');
@@ -238,7 +228,7 @@ const paySubscription = async (req, res) => {
     const subscription = await prisma.subscription.findUnique({
       where: { id },
       include: {
-        orderLines: { include: { product: true, variant: true } },
+        orderLines: { include: { product: true, variant: true, tax: true, discount: true } },
         customer: { select: { fullName: true, email: true } },
         plan: true,
       },
@@ -248,36 +238,39 @@ const paySubscription = async (req, res) => {
     if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
     if (subscription.status !== 'confirmed') return error(res, 'Subscription must be confirmed before payment', 400);
 
-    // Build Stripe line items: plan price + product add-ons
-    const lineItems = [];
-
-    // Add the plan base price as the first line item
-    if (subscription.plan) {
-      lineItems.push({
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: `${subscription.plan.name} (${subscription.plan.billingPeriod} plan)`,
-          },
-          unit_amount: Math.round(Number(subscription.plan.price) * 100),
-        },
-        quantity: 1,
-      });
+    if (subscription.orderLines.length === 0) {
+      return error(res, 'No order lines on this subscription', 400);
     }
 
-    // Add product add-ons
-    for (const line of subscription.orderLines) {
-      lineItems.push({
+    // Build Stripe line items directly from order lines (invoice is generated after payment)
+    const lineItems = subscription.orderLines.map((line) => {
+      const lineAmount = Number(line.amount);
+      // Calculate discount
+      let discountAmt = 0;
+      if (line.discount && line.discount.value) {
+        discountAmt = line.discount.type === 'percentage'
+          ? lineAmount * (Number(line.discount.value) / 100)
+          : Math.min(Number(line.discount.value), lineAmount);
+      }
+      // Calculate tax on discounted amount
+      const taxableAmount = lineAmount - discountAmt;
+      let taxAmt = 0;
+      if (line.tax && line.tax.rate) {
+        taxAmt = taxableAmount * (Number(line.tax.rate) / 100);
+      }
+      const lineNet = lineAmount - discountAmt + taxAmt;
+
+      return {
         price_data: {
           currency: 'usd',
           product_data: {
             name: line.product.name + (line.variant ? ` - ${line.variant.value}` : ''),
           },
-          unit_amount: Math.round((Number(line.amount) / line.quantity) * 100),
+          unit_amount: Math.round((lineNet / line.quantity) * 100),
         },
         quantity: line.quantity,
-      });
-    }
+      };
+    });
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -300,6 +293,107 @@ const paySubscription = async (req, res) => {
   }
 };
 
+// POST /shop/subscriptions/:id/confirm-payment
+// Called by frontend after returning from Stripe — verifies payment and processes it
+// This is a reliable fallback for when webhooks don't fire (local dev, network issues)
+const confirmPayment = async (req, res) => {
+  try {
+    const stripe = require('../config/stripe');
+    const invoiceService = require('../services/invoice.service');
+    const { id } = req.params;
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { id },
+      include: { plan: true },
+    });
+
+    if (!subscription) return error(res, 'Subscription not found', 404);
+    if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
+
+    // Already activated by webhook — nothing to do
+    if (subscription.status === 'active') {
+      return success(res, subscription, 'Subscription is already active');
+    }
+
+    if (subscription.status !== 'confirmed') {
+      return error(res, 'Subscription is not in confirmed state', 400);
+    }
+
+    // Find the most recent Stripe checkout session for this subscription
+    const sessions = await stripe.checkout.sessions.list({
+      limit: 5,
+    });
+
+    const matchedSession = sessions.data.find(
+      (s) => s.metadata?.subscriptionId === id && s.payment_status === 'paid'
+    );
+
+    if (!matchedSession) {
+      return error(res, 'No completed payment found for this subscription', 400);
+    }
+
+    // Check if payment was already recorded (by webhook)
+    const existingPayment = await prisma.payment.findFirst({
+      where: { stripeSessionId: matchedSession.id, status: 'completed' },
+    });
+
+    if (existingPayment) {
+      // Payment recorded but subscription not yet activated — activate now
+      await prisma.subscription.update({
+        where: { id },
+        data: { status: 'active' },
+      });
+      return success(res, { status: 'active' }, 'Subscription activated');
+    }
+
+    // Process payment: generate invoice, record payment, activate subscription
+    let invoice = await prisma.invoice.findFirst({
+      where: { subscriptionId: id, status: { in: ['confirmed', 'draft'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!invoice) {
+      invoice = await invoiceService.generateInvoice(id);
+    }
+    if (invoice.status === 'draft') {
+      await invoiceService.confirmInvoice(invoice.id, null);
+    }
+
+    await prisma.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        method: 'stripe',
+        amount: (matchedSession.amount_total || 0) / 100,
+        status: 'completed',
+        stripeSessionId: matchedSession.id,
+        stripePaymentIntentId: matchedSession.payment_intent || null,
+        reference: `Stripe: ${matchedSession.payment_intent || matchedSession.id}`,
+        paymentDate: new Date(),
+      },
+    });
+
+    await invoiceService.updatePaymentTotals(invoice.id);
+
+    await prisma.subscription.update({
+      where: { id },
+      data: { status: 'active' },
+    });
+
+    await prisma.subscriptionStatusLog.create({
+      data: {
+        subscriptionId: id,
+        fromStatus: 'confirmed',
+        toStatus: 'active',
+        reason: 'Payment confirmed via Stripe',
+      },
+    });
+
+    return success(res, { status: 'active' }, 'Payment verified — subscription activated');
+  } catch (err) {
+    console.error('Confirm payment error:', err);
+    return error(res, 'Failed to verify payment');
+  }
+};
+
 module.exports = {
   getProducts,
   getProductDetail,
@@ -308,4 +402,5 @@ module.exports = {
   acceptQuotation,
   rejectQuotation,
   paySubscription,
+  confirmPayment,
 };
