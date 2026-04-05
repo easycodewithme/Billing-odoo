@@ -60,7 +60,7 @@ export default function OverdueInvoices({ invoices = [] }) {
                     </Button>
                   </TableCell>
                   <TableCell>
-                    {inv.customerId?.name || '-'}
+                    {inv.customer?.fullName || '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     ${Number(inv.netAmount || inv.outstandingAmount || 0).toFixed(2)}

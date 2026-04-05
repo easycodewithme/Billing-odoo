@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { success, error, paginated } = require('../utils/apiResponse');
 const { getPagination } = require('../utils/pagination');
+const emailService = require('../services/email.service');
 
 // GET /shop/products - Public product listing
 const getProducts = async (req, res) => {
@@ -173,6 +174,17 @@ const acceptQuotation = async (req, res) => {
       return sub;
     });
 
+    // Notify staff that customer accepted (email the salesperson if assigned)
+    if (subscription.salespersonId) {
+      const sp = await prisma.user.findUnique({ where: { id: subscription.salespersonId }, select: { email: true } });
+      if (sp?.email) {
+        emailService.sendQuotationAcceptedEmail(sp.email, {
+          customerName: updated.customer?.fullName,
+          subscriptionNo: updated.subscriptionNo,
+        }).catch(() => {});
+      }
+    }
+
     // No invoice generated here — invoice is created automatically after payment via Stripe webhook
     return success(res, updated, 'Quotation accepted. Please proceed to payment.');
   } catch (err) {
@@ -187,7 +199,10 @@ const rejectQuotation = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    const subscription = await prisma.subscription.findUnique({
+      where: { id },
+      select: { id: true, customerId: true, status: true, subscriptionNo: true, salespersonId: true },
+    });
 
     if (!subscription) return error(res, 'Subscription not found', 404);
     if (subscription.customerId !== req.user.id) return error(res, 'Not authorized', 403);
@@ -211,6 +226,18 @@ const rejectQuotation = async (req, res) => {
 
       return sub;
     });
+
+    // Notify staff that customer rejected
+    if (subscription.salespersonId) {
+      const sp = await prisma.user.findUnique({ where: { id: subscription.salespersonId }, select: { email: true } });
+      if (sp?.email) {
+        emailService.sendQuotationRejectedEmail(sp.email, {
+          customerName: req.user.fullName || req.user.email,
+          subscriptionNo: subscription.subscriptionNo,
+          reason: reason || 'No reason provided',
+        }).catch(() => {});
+      }
+    }
 
     return success(res, updated, 'Quotation rejected');
   } catch (err) {
@@ -386,6 +413,31 @@ const confirmPayment = async (req, res) => {
         reason: 'Payment confirmed via Stripe',
       },
     });
+
+    // Send payment + activation emails
+    const activatedSub = await prisma.subscription.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { fullName: true, email: true } },
+        plan: { select: { name: true } },
+      },
+    });
+    if (activatedSub?.customer?.email) {
+      const amount = (matchedSession.amount_total || 0) / 100;
+      emailService.sendPaymentConfirmationEmail(activatedSub.customer.email, {
+        customerName: activatedSub.customer.fullName,
+        subscriptionNo: activatedSub.subscriptionNo,
+        amount,
+        invoiceNo: invoice.invoiceNo,
+        method: 'Stripe',
+      }).catch(() => {});
+      emailService.sendSubscriptionActivatedEmail(activatedSub.customer.email, {
+        customerName: activatedSub.customer.fullName,
+        subscriptionNo: activatedSub.subscriptionNo,
+        planName: activatedSub.plan?.name,
+        expirationDate: activatedSub.expirationDate,
+      }).catch(() => {});
+    }
 
     return success(res, { status: 'active' }, 'Payment verified — subscription activated');
   } catch (err) {

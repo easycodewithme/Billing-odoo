@@ -44,11 +44,11 @@ function StaffDashboard({ refreshKey }) {
       ]);
       setStats(statsRes.data.data || statsRes.data);
 
-      const revData = revenueRes.data.data || revenueRes.data || [];
-      setRevenueData(Array.isArray(revData) ? revData : []);
+      const revData = revenueRes.data.data || revenueRes.data || {};
+      setRevenueData(revData.monthly || (Array.isArray(revData) ? revData : []));
 
       const subData = subRes.data.data || subRes.data || {};
-      const byStatus = subData.byStatus || {};
+      const byStatus = subData.byStatus || [];
       if (Array.isArray(byStatus)) {
         setSubscriptionData(byStatus);
       } else {

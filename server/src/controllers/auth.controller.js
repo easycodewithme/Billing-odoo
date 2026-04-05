@@ -55,6 +55,9 @@ const signup = async (req, res) => {
     // Return user data without password
     const { password: _, ...userData } = user;
 
+    // Send welcome email (non-blocking)
+    emailService.sendWelcomeEmail(user.email, user.fullName).catch(() => {});
+
     return res.status(201).json({
       message: 'Account created successfully',
       user: userData,

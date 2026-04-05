@@ -457,7 +457,7 @@ export default function ReportsPage() {
                                   {inv.invoiceNo}
                                 </Button>
                               </TableCell>
-                              <TableCell>{inv.customerId?.name || '-'}</TableCell>
+                              <TableCell>{inv.customer?.fullName || '-'}</TableCell>
                               <TableCell>
                                 {inv.dueDate
                                   ? new Date(inv.dueDate).toLocaleDateString()

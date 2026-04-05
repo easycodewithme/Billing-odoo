@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { logAction } = require('./audit.service');
 const invoiceService = require('./invoice.service');
+const emailService = require('./email.service');
 const stripe = require('../config/stripe');
 const config = require('../config/env');
 
@@ -177,6 +178,31 @@ const handleStripeWebhook = async (event) => {
                 reason: 'Payment received via Stripe',
               },
             });
+
+            // Send payment confirmation + activation emails
+            const activatedSub = await prisma.subscription.findUnique({
+              where: { id: subId },
+              include: {
+                customer: { select: { fullName: true, email: true } },
+                plan: { select: { name: true } },
+              },
+            });
+            if (activatedSub?.customer?.email) {
+              const amount = (session.amount_total || 0) / 100;
+              emailService.sendPaymentConfirmationEmail(activatedSub.customer.email, {
+                customerName: activatedSub.customer.fullName,
+                subscriptionNo: activatedSub.subscriptionNo,
+                amount,
+                invoiceNo: invoice.invoiceNo,
+                method: 'Stripe',
+              }).catch(() => {});
+              emailService.sendSubscriptionActivatedEmail(activatedSub.customer.email, {
+                customerName: activatedSub.customer.fullName,
+                subscriptionNo: activatedSub.subscriptionNo,
+                planName: activatedSub.plan?.name,
+                expirationDate: activatedSub.expirationDate,
+              }).catch(() => {});
+            }
 
             console.log(`Subscription ${subId} activated after payment`);
           } catch (err) {

@@ -213,10 +213,10 @@ export default function SubscriptionDetail({ subscription, onRefresh }) {
               <p className="text-sm font-medium text-muted-foreground">Payment Terms</p>
               <p className="text-sm">{subscription.paymentTerms || '-'}</p>
             </div>
-            {subscription.salespersonId && (
+            {subscription.salesperson && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Salesperson</p>
-                <p className="text-sm">{subscription.salespersonId}</p>
+                <p className="text-sm">{subscription.salesperson.fullName}</p>
               </div>
             )}
             {subscription.quotationDate && (

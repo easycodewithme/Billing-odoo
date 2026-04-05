@@ -3,7 +3,6 @@ const { success, error } = require('../utils/apiResponse');
 
 /**
  * GET /reports/dashboard-stats
- * Return key dashboard statistics.
  */
 const dashboardStats = async (req, res) => {
   try {
@@ -28,7 +27,6 @@ const dashboardStats = async (req, res) => {
           status: { notIn: ['paid', 'cancelled'] },
         },
       }),
-      // MRR: sum netAmount of invoices linked to active subscriptions, divided by billing period months
       prisma.subscription.findMany({
         where: { status: 'active' },
         include: {
@@ -37,23 +35,15 @@ const dashboardStats = async (req, res) => {
       }),
     ]);
 
-    // Calculate MRR from active subscriptions
     const mrr = mrrResult.reduce((total, sub) => {
       const price = Number(sub.plan?.price || 0);
       const period = sub.plan?.billingPeriod;
-
       switch (period) {
-        case 'monthly':
-          return total + price;
-        case 'quarterly':
-          return total + price / 3;
-        case 'yearly':
-        case 'annual':
-          return total + price / 12;
-        case 'weekly':
-          return total + price * 4.33;
-        default:
-          return total + price;
+        case 'monthly': return total + price;
+        case 'quarterly': return total + price / 3;
+        case 'yearly': case 'annual': return total + price / 12;
+        case 'weekly': return total + price * 4.33;
+        default: return total + price;
       }
     }, 0);
 
@@ -61,7 +51,7 @@ const dashboardStats = async (req, res) => {
       totalSubscriptions,
       activeSubscriptions,
       totalCustomers,
-      totalRevenue: revenueResult._sum.netAmount || 0,
+      totalRevenue: Number(revenueResult._sum.netAmount || 0),
       overdueInvoicesCount,
       mrr: Math.round(mrr * 100) / 100,
     });
@@ -74,6 +64,7 @@ const dashboardStats = async (req, res) => {
 /**
  * GET /reports/revenue
  * Monthly revenue for the last 12 months.
+ * Returns { monthly: [{month, revenue}], total }
  */
 const revenueReport = async (req, res) => {
   try {
@@ -85,37 +76,34 @@ const revenueReport = async (req, res) => {
         status: 'completed',
         paymentDate: { gte: twelveMonthsAgo },
       },
-      select: {
-        amount: true,
-        paymentDate: true,
-      },
+      select: { amount: true, paymentDate: true },
       orderBy: { paymentDate: 'asc' },
     });
 
     // Group payments by month
     const monthlyRevenue = {};
+    let total = 0;
     payments.forEach((payment) => {
+      const amt = Number(payment.amount);
+      total += amt;
       const date = new Date(payment.paymentDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthlyRevenue[key]) {
-        monthlyRevenue[key] = 0;
-      }
-      monthlyRevenue[key] += payment.amount;
+      monthlyRevenue[key] = (monthlyRevenue[key] || 0) + amt;
     });
 
     // Build array for last 12 months
-    const result = [];
+    const monthly = [];
     for (let i = 11; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      result.push({
+      monthly.push({
         month: key,
         revenue: Math.round((monthlyRevenue[key] || 0) * 100) / 100,
       });
     }
 
-    return success(res, result);
+    return success(res, { monthly, total: Math.round(total * 100) / 100 });
   } catch (err) {
     console.error('Revenue report error:', err);
     return error(res, 'Failed to fetch revenue report');
@@ -124,7 +112,8 @@ const revenueReport = async (req, res) => {
 
 /**
  * GET /reports/subscriptions
- * Subscription count by status and new subscriptions trend by month.
+ * Subscription count by status (as array for PieChart) and monthly trend.
+ * Returns { byStatus: [{status, count}], monthlyTrend: [{month, count}] }
  */
 const subscriptionReport = async (req, res) => {
   try {
@@ -133,10 +122,11 @@ const subscriptionReport = async (req, res) => {
       _count: { id: true },
     });
 
-    const byStatus = {};
-    statusCounts.forEach((item) => {
-      byStatus[item.status] = item._count.id;
-    });
+    // Convert to array format for PieChart: [{ status, count }]
+    const byStatus = statusCounts.map((item) => ({
+      status: item.status,
+      count: item._count.id,
+    }));
 
     // New subscriptions by month for the last 12 months
     const twelveMonthsAgo = new Date();
@@ -148,28 +138,22 @@ const subscriptionReport = async (req, res) => {
       orderBy: { createdAt: 'asc' },
     });
 
-    const monthlyTrend = {};
+    const monthlyMap = {};
     subscriptions.forEach((sub) => {
       const date = new Date(sub.createdAt);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthlyTrend[key]) {
-        monthlyTrend[key] = 0;
-      }
-      monthlyTrend[key]++;
+      monthlyMap[key] = (monthlyMap[key] || 0) + 1;
     });
 
-    const trend = [];
+    const monthlyTrend = [];
     for (let i = 11; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      trend.push({
-        month: key,
-        count: monthlyTrend[key] || 0,
-      });
+      monthlyTrend.push({ month: key, count: monthlyMap[key] || 0 });
     }
 
-    return success(res, { byStatus, trend });
+    return success(res, { byStatus, monthlyTrend });
   } catch (err) {
     console.error('Subscription report error:', err);
     return error(res, 'Failed to fetch subscription report');
@@ -179,13 +163,12 @@ const subscriptionReport = async (req, res) => {
 /**
  * GET /reports/payments
  * Total paid vs outstanding and breakdown by payment method.
+ * Returns { totalPaid, totalOutstanding, byMethod: [{method, total, count}] }
  */
 const paymentReport = async (req, res) => {
   try {
     const [paidResult, outstandingResult, methodBreakdown] = await Promise.all([
-      prisma.invoice.aggregate({
-        _sum: { paidAmount: true },
-      }),
+      prisma.invoice.aggregate({ _sum: { paidAmount: true } }),
       prisma.invoice.aggregate({
         where: { status: { notIn: ['paid', 'cancelled'] } },
         _sum: { outstandingAmount: true },
@@ -198,15 +181,16 @@ const paymentReport = async (req, res) => {
       }),
     ]);
 
+    // Use "total" key to match frontend PieChart dataKey
     const byMethod = methodBreakdown.map((item) => ({
       method: item.method,
-      totalAmount: item._sum.amount || 0,
+      total: Number(item._sum.amount || 0),
       count: item._count.id,
     }));
 
     return success(res, {
-      totalPaid: paidResult._sum.paidAmount || 0,
-      totalOutstanding: outstandingResult._sum.outstandingAmount || 0,
+      totalPaid: Number(paidResult._sum.paidAmount || 0),
+      totalOutstanding: Number(outstandingResult._sum.outstandingAmount || 0),
       byMethod,
     });
   } catch (err) {
@@ -217,7 +201,6 @@ const paymentReport = async (req, res) => {
 
 /**
  * GET /reports/overdue-invoices
- * List invoices where dueDate < now and status = confirmed (not paid).
  */
 const overdueInvoices = async (req, res) => {
   try {

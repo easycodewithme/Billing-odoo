@@ -3,6 +3,7 @@ const { success, error, paginated } = require('../utils/apiResponse');
 const { getPagination } = require('../utils/pagination');
 const { logAction } = require('../services/audit.service');
 const subscriptionService = require('../services/subscription.service');
+const emailService = require('../services/email.service');
 
 /**
  * GET /subscriptions
@@ -100,7 +101,17 @@ const getById = async (req, res) => {
       return error(res, 'Not authorized', 403);
     }
 
-    return success(res, subscription);
+    // Resolve salespersonId to name (no FK relation in schema)
+    let salesperson = null;
+    if (subscription.salespersonId) {
+      const sp = await prisma.user.findUnique({
+        where: { id: subscription.salespersonId },
+        select: { fullName: true, email: true },
+      });
+      salesperson = sp;
+    }
+
+    return success(res, { ...subscription, salesperson });
   } catch (err) {
     console.error('Get subscription by ID error:', err);
     return error(res, 'Failed to fetch subscription');
@@ -222,6 +233,56 @@ const updateStatus = async (req, res) => {
         where: { id },
         data: { quotationDate: new Date() },
       });
+      // Email customer about the quotation
+      const sub = await prisma.subscription.findUnique({
+        where: { id },
+        include: {
+          customer: { select: { fullName: true, email: true } },
+          plan: { select: { name: true, billingPeriod: true } },
+          orderLines: { include: { product: true } },
+        },
+      });
+      if (sub?.customer?.email) {
+        emailService.sendQuotationEmail(sub.customer.email, {
+          customerName: sub.customer.fullName,
+          subscriptionNo: sub.subscriptionNo,
+          planName: sub.plan?.name,
+          billingPeriod: sub.plan?.billingPeriod,
+          items: sub.orderLines.map(l => ({
+            name: l.product?.name || 'Item',
+            quantity: l.quantity,
+            amount: l.amount,
+          })),
+          totalAmount: sub.orderLines.reduce((s, l) => s + Number(l.amount), 0),
+        }).catch(() => {});
+      }
+    }
+
+    // Email for pause/close status changes
+    if (['paused', 'closed'].includes(newStatus)) {
+      const sub = await prisma.subscription.findUnique({
+        where: { id },
+        include: {
+          customer: { select: { fullName: true, email: true } },
+          plan: { select: { renewable: true } },
+        },
+      });
+      if (sub?.customer?.email) {
+        if (newStatus === 'paused') {
+          emailService.sendSubscriptionPausedEmail(sub.customer.email, {
+            customerName: sub.customer.fullName,
+            subscriptionNo: sub.subscriptionNo,
+            reason,
+          }).catch(() => {});
+        } else {
+          emailService.sendSubscriptionClosedEmail(sub.customer.email, {
+            customerName: sub.customer.fullName,
+            subscriptionNo: sub.subscriptionNo,
+            reason,
+            renewable: sub.plan?.renewable,
+          }).catch(() => {});
+        }
+      }
     }
 
     return success(res, updated, `Subscription status changed to '${newStatus}'`);
@@ -495,6 +556,32 @@ const portalAction = async (req, res) => {
 
       return sub;
     });
+
+    // Send email notification for portal actions
+    const customerEmail = req.user.email;
+    if (customerEmail) {
+      if (newStatus === 'paused') {
+        emailService.sendSubscriptionPausedEmail(customerEmail, {
+          customerName: req.user.fullName,
+          subscriptionNo: subscription.subscriptionNo || updated.subscriptionNo,
+          reason: reason || 'Paused by user',
+        }).catch(() => {});
+      } else if (newStatus === 'closed') {
+        emailService.sendSubscriptionClosedEmail(customerEmail, {
+          customerName: req.user.fullName,
+          subscriptionNo: subscription.subscriptionNo || updated.subscriptionNo,
+          reason: reason || 'Closed by user',
+          renewable: subscription.plan?.renewable,
+        }).catch(() => {});
+      } else if (newStatus === 'active') {
+        emailService.sendSubscriptionActivatedEmail(customerEmail, {
+          customerName: req.user.fullName,
+          subscriptionNo: updated.subscriptionNo,
+          planName: updated.plan?.name,
+          expirationDate: updated.expirationDate,
+        }).catch(() => {});
+      }
+    }
 
     return success(res, updated, `Subscription ${action}d successfully`);
   } catch (err) {

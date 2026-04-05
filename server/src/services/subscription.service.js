@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { logAction } = require('./audit.service');
+const emailService = require('./email.service');
 
 /**
  * Generate a unique subscription number.
@@ -263,6 +264,16 @@ const renewSubscription = async (subscriptionId, userId) => {
 
     return created;
   });
+
+  // Send renewal email to customer
+  if (newSubscription.customer?.email) {
+    emailService.sendSubscriptionRenewedEmail(newSubscription.customer.email, {
+      customerName: newSubscription.customer.fullName,
+      oldSubscriptionNo: subscription.subscriptionNo,
+      newSubscriptionNo: newSubscription.subscriptionNo,
+      planName: newSubscription.plan?.name,
+    }).catch(() => {});
+  }
 
   return newSubscription;
 };

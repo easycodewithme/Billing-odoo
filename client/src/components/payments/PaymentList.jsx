@@ -60,7 +60,7 @@ export default function PaymentList({ refreshKey }) {
       render: (val) => (val ? new Date(val).toLocaleDateString() : '-'),
     },
     {
-      key: 'invoiceId',
+      key: 'invoice',
       label: 'Invoice No',
       render: (val) => val?.invoiceNo || '-',
     },

@@ -63,12 +63,18 @@ export default function OrderLineTable({
   const [variants, setVariants] = useState([]);
   const [taxes, setTaxes] = useState([]);
   const [discounts, setDiscounts] = useState([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
 
   useEffect(() => {
     if (formOpen) {
-      fetchProducts();
-      fetchTaxes();
-      fetchDiscounts();
+      setOptionsLoading(true);
+      const promises = [fetchProducts(), fetchTaxes(), fetchDiscounts()];
+      // When editing, also fetch variants for the selected product
+      if (editLine) {
+        const pid = editLine.product?.id || editLine.productId;
+        if (pid) promises.push(fetchVariants(pid));
+      }
+      Promise.all(promises).finally(() => setOptionsLoading(false));
     }
   }, [formOpen]);
 
@@ -141,8 +147,6 @@ export default function OrderLineTable({
       taxId: line.tax?.id || line.taxId || '',
       discountId: line.discount?.id || line.discountId || '',
     });
-    const pid = line.product?.id || line.productId?.id || line.productId;
-    if (pid) fetchVariants(pid);
     setFormOpen(true);
   };
 
@@ -382,6 +386,9 @@ export default function OrderLineTable({
             </DialogDescription>
           </DialogHeader>
 
+          {optionsLoading ? (
+            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">Loading options...</div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="ol-product">Product</Label>
@@ -502,6 +509,7 @@ export default function OrderLineTable({
               </Button>
             </DialogFooter>
           </form>
+          )}
         </DialogContent>
       </Dialog>
 

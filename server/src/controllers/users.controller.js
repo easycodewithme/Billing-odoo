@@ -3,6 +3,7 @@ const authService = require('../services/auth.service');
 const { success, error, paginated } = require('../utils/apiResponse');
 const { getPagination } = require('../utils/pagination');
 const { logAction } = require('../services/audit.service');
+const { sendInternalUserInviteEmail } = require('../services/email.service');
 
 /**
  * GET /users
@@ -124,6 +125,14 @@ const create = async (req, res) => {
     });
 
     const { password: _, ...userData } = user;
+
+    // Send invite email with credentials (non-blocking)
+    sendInternalUserInviteEmail(email, {
+      fullName,
+      email,
+      password, // plain text password (before hashing) so user can log in
+      invitedBy: req.user.fullName || req.user.email,
+    }).catch(() => {});
 
     return success(res, userData, 'User created successfully', 201);
   } catch (err) {

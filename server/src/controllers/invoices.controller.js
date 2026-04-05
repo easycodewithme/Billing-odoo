@@ -188,7 +188,13 @@ const sendInvoice = async (req, res) => {
     }
 
     const pdfBuffer = await generateInvoicePDF(invoice);
-    await sendInvoiceEmail(invoice.customer.email, invoice.invoiceNo, pdfBuffer);
+    await sendInvoiceEmail(invoice.customer.email, {
+      customerName: invoice.customer.fullName,
+      invoiceNo: invoice.invoiceNo,
+      netAmount: invoice.netAmount,
+      dueDate: invoice.dueDate,
+      pdfBuffer,
+    });
 
     return success(res, { invoiceId: id }, 'Invoice sent successfully');
   } catch (err) {

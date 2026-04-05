@@ -55,8 +55,12 @@ const processAutoClose = async () => {
 };
 
 /**
- * Auto-renew recently closed subscriptions where plan.renewable is true.
- * Creates a new draft subscription cloned from the closed one.
+ * Auto-renew subscriptions that were SYSTEM auto-closed (expiration reached).
+ * Does NOT renew subscriptions manually cancelled by users.
+ *
+ * Logic: only renew if the most recent status log reason is "Auto-closed: subscription expired"
+ * (set by processAutoClose above). User-initiated closes have different reasons
+ * like "Customer cancelled", "Portal user close", "Customer rejected quotation", etc.
  */
 const processAutoRenew = async () => {
   const oneDayAgo = new Date();
@@ -73,12 +77,25 @@ const processAutoRenew = async () => {
     include: {
       plan: true,
       orderLines: true,
+      statusLogs: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { reason: true },
+      },
     },
   });
 
   let renewed = 0;
 
   for (const sub of closedRenewable) {
+    // Only auto-renew if the subscription was closed by the system (auto-close),
+    // NOT if the user manually cancelled it
+    const lastLogReason = sub.statusLogs[0]?.reason || '';
+    if (!lastLogReason.startsWith('Auto-closed')) {
+      console.log(`[Billing] Skipping ${sub.subscriptionNo}: closed by user ("${lastLogReason}"), not auto-closed`);
+      continue;
+    }
+
     try {
       const periodDays = PERIOD_DAYS[sub.plan.billingPeriod] || 30;
       const newStart = new Date();
