@@ -6,6 +6,28 @@ A full-stack SaaS subscription management and billing platform built for managin
 
 ---
 
+## Database Schema
+
+![Schema Architecture](schema_architecture.png)
+
+---
+
+## UI Screenshots
+
+### Admin Dashboard
+![Admin Dashboard](image.png)
+
+### Internal User Dashboard
+![Internal User Dashboard](internaluser.png)
+
+### Payment Transactions
+![Payments](payments.png)
+
+### Portal User View
+![Portal User](user.png)
+
+---
+
 ## Features
 
 ### Subscription Lifecycle
@@ -199,14 +221,6 @@ Billing-odoo/
 | Reports | `/api/reports/*` | Admin / Internal |
 | Shop | `/api/shop/*` | Public / Portal |
 | Webhooks | `/api/webhooks/stripe` | Stripe signature |
-
----
-
-## Database Schema
-
-14 core tables: Users, Products, ProductVariants, RecurringPlans, Subscriptions, OrderLines, Invoices, InvoiceLines, Payments, Taxes, Discounts, QuotationTemplates, SubscriptionStatusLogs, AuditLogs
-
-![Schema Architecture](schema_architecture.png)
 
 ---
 
